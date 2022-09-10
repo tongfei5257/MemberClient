@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="main_color" tools:ignore="MissingDefaultResource">#db0f0c</color>
+    <color name="pure_white">#fcfbfb</color>
+
+    <!-- 标题栏返回按钮的背景颜色 -->
+    <drawable name="button_backward_pressed">#00BA91</drawable>
+    <drawable name="button_backward_normal">#00000000</drawable>
+
+    <!-- 程序主色调 -->
+    <color name="background">#f2f2f2</color>
+    <color name="table_background">#cbcbcb</color>
+
+    <color name="light_white">#fcfcfc</color>
+    <color name="bg_top_bar">#fbcd45</color>
+
+    <item name="gray_holo_dark" type="color">#ff464646</item>
+    <item name="gray_holo_light" type="color">#ffd0d0d0</item>
+
+    <color name="main_bg">#f5f5f5</color>
+    <color name="btn_color_main_bg_normal">#fff78b00</color>
+    <color name="btn_color_main_bg_pressed">#ffdb8100</color>
+    <color name="white">#ffffffff</color>
+    <color name="main_bottom_text_bg_color">#767e89</color>
+    <color name="color_btn_normal_cbn2">#ffaaaaaa</color>
+    <color name="color_line_cl4">#ffe4e4e4</color>
+    <color name="color_line_cl5">#ffdfdfdf</color>
+    <color name="color_text_c10">#fff78b00</color>
+    <color name="color_text_c11">#ff1c865f</color>
+    <color name="color_text_c12">#ffb24537</color>
+    <color name="color_text_c13">#ff9b4421</color>
+    <color name="color_text_c14">#ff73580a</color>
+    <color name="color_text_c15">#fffff8e2</color>
+    <color name="color_text_c5">#73394042</color>
+    <color name="color_text_c6">#ff767e89</color>
+    <color name="transparent">#00000000</color>
+    <color name="holo_orange_light">#ffffbb33</color>
+    <color name="holo_orange_dark">#ffff8800</color>
+    <color name="color_text_c6_a20">#33767e89</color>
+    <color name="color_text_c7">#ff394042</color>
+    <color name="bg_top">#fbcd45</color>
+    <color name="actionbar_text_default">#ffaa4725</color>
+    <color name="actionbar_text_pressed">#405e2807</color>
+    <color name="menu_panel_divider">#99827364</color>
+    <color name="common_sub_item_bg_normal">#fff5f5f5</color>
+    <color name="nav_text_normal">#5c5e61</color>
+    <color name="nav_text_pressed">#DA4A3A</color>
+
+    <color name="bg_select_date">#f8f8f8</color>
+
+    <color name="colorTextCardAddEdittext">#837f8c</color>
+
+    <color name="colorTextChartTabSelect">#a9a6b8</color>
+    <color name="colorTextChartTabNormal">#4f4d5e</color>
+    <color name="colorTextChartDescribe">#c9c7d3</color>
+    <color name="colorGreenChart">#11a06a</color>
+    <color name="colorTextContract">#e1dfed</color>
+
+
+
+
+    <!--原谅绿-->
+    <color name="colorPrimary">#00BA91</color>
+    <color name="colorPrimaryDark">#00BA91</color>
+    <color name="colorAccent">#00BA91</color>
+
+    <!--酷炫黑-->
+    <color name="colorPrimaryDarkBlack">#010001</color>
+    <color name="colorPrimaryBlack">#010001</color>
+    <color name="colorAccentBlack">#010001</color>
+
+    <!--少女红-->
+    <color name="colorPrimaryDarkGreen">#FF5050</color>
+    <color name="colorPrimaryGreen">#FF5050</color>
+    <color name="colorAccentGreen">#FF5050</color>
+
+    <!--胖次蓝-->
+    <color name="colorPrimaryDarkBlue">#4E77FF</color>
+    <color name="colorPrimaryBlue">#4E77FF</color>
+    <color name="colorAccentBlue">#4E77FF</color>
+
+    <!--基佬紫-->
+    <color name="colorPrimaryDarkPurple">#A33DF9</color>
+    <color name="colorPrimaryPurple">#A33DF9</color>
+    <color name="colorAccentPurple">#A33DF9</color>
+
+    <!--活力橙-->
+    <color name="colorPrimaryDarkOrange">#FF9150</color>
+    <color name="colorPrimaryOrange">#FF9150</color>
+    <color name="colorAccentOrange">#FF9150</color>
+
+    <!--大地棕-->
+    <color name="colorPrimaryDarkBrown">#88564D</color>
+    <color name="colorPrimaryBrown">#88564D</color>
+    <color name="colorAccentBrown">#88564D</color>
+    <color name="black">#000000</color>
+    <color name="text_black3">#333333</color>
+    <color name="text_black6">#666666</color>
+    <color name="text_black9">#999999</color>
+    <color name="text_red">#FF5050</color>
+
+    <color name="red">#ff0000</color>
+
+    <color name="green">#008000</color> <!-- 绿色 -->
+    <color name="darkgreen">#006400</color> <!-- 暗绿色 -->
+
+    <!--aboutActivity字体颜色-->
+    <color name="material_grey_100">#fff5f5f5</color>
+    <color name="material_grey_300">#ffe0e0e0</color>
+    <color name="material_grey_50">#fffafafa</color>
+    <color name="material_grey_600">#ff757575</color>
+    <color name="material_grey_800">#ff424242</color>
+    <color name="material_grey_850">#ff303030</color>
+    <color name="material_grey_900">#ff212121</color>
+
+    <color name="colorDivide">#F9F9F9</color>
+    <color name="colorTabSelect">#FFE0AA</color>
+    <color name="colorMainDateBg">#F7F7F7</color>
+    <color name="colorControlNormal">#CCCCCC</color>
+    <!--页面默认背景色-->
+    <color name="colorBackground">#F9F9F9</color>
+    <!--文字颜色-->
+    <color name="textWhite">#FFFFFF</color>
+    <color name="textBlack">#333333</color>
+    <color name="textBrown">#6A4A57</color>
+    <color name="textPink">#FE88A8</color>
+    <color name="textMaple">#977F8A</color>
+    <color name="textLightBlue">#96D6EF</color>
+    <color name="textRed">#ED5543</color>
+    <color name="textGrayish">#999999</color>
+    <color name="textGray">#666666</color>
+
+    <color name="gray">#999999</color>
+    <color name="grayish">#EFEFEF</color>
+
+    <!--tab layout 文字颜色-->
+    <color name="tabNormalTextColor">#8CFFFFFF</color>
+    <color name="tabSelectedTextColor">#FFFFFF</color>
+    <color name="tabIndicatorColor">#FFFFFF</color>
+
+</resources>

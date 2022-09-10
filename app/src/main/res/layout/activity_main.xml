@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+   >
+
+    <!--<FrameLayout-->
+        <!--android:id="@+id/main_fragment"-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="0dp"-->
+        <!--android:layout_weight="1"-->
+        <!--/>-->
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/vg_main"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:flipInterval="30"
+        android:persistentDrawingCache="animation"
+        />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"
+        />
+
+    <RadioGroup
+        android:id="@+id/radio_gp_tab"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:orientation="horizontal"
+        >
+        <RadioButton
+            android:id="@+id/radio_btn_chart"
+            style="@style/tab_menu_style"
+            android:drawableTop="@drawable/nav_btn_chart"
+            android:text="主页"
+            />
+        <RadioButton
+            android:id="@+id/radio_btn_account"
+            style="@style/tab_menu_style"
+            android:drawableTop="@drawable/nav_btn_account"
+            android:text="报表"
+            />
+
+
+        <ImageView
+            android:id="@+id/iv_btn_account"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@mipmap/jiahao"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="3dp"
+            android:visibility="gone"
+            />
+
+        <RadioButton
+            android:id="@+id/radio_btn_me"
+            style="@style/tab_menu_style"
+            android:drawableTop="@drawable/nav_btn_me"
+            android:text="我的"
+            />
+
+
+    </RadioGroup>
+</LinearLayout>

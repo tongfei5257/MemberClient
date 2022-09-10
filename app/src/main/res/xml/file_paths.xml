@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- apk存放路径:getExternalCacheDir()/apk/xiaomaigui.apk -->
+    <root-path name="root" path="."/>
+    <!--
+        如下路径是在：SDCard/Record/下面的文件
+    -->
+    <external-path
+        name="."
+        path="."/>
+</paths>
