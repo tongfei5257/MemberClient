@@ -12,6 +12,7 @@ import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -23,11 +24,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.User;
+import com.example.memberclient.model.User2LC;
 import com.example.memberclient.utils.DateUtils;
 import com.example.memberclient.utils.ProgressUtils;
-
 
 
 import java.util.Date;
@@ -37,6 +40,10 @@ import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.SaveListener;
 import cn.bmob.v3.listener.UpdateListener;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCUser;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 
 public class ProjectDetailActivity extends BaseActivity {
@@ -72,6 +79,7 @@ public class ProjectDetailActivity extends BaseActivity {
 
 
     private Project mProject = new Project();
+    private ProjectLC mProjectLC = new ProjectLC("ProjectLC");
     //选择时间
     protected int mYear;
     protected int mMonth;
@@ -155,22 +163,42 @@ public class ProjectDetailActivity extends BaseActivity {
         mTimeTv.setText(days);
         final String action = getIntent().getStringExtra("action");
         if (action.equals("edit")) {
-            mProject = (Project) getIntent().getSerializableExtra("bean");
-            remark.setText(mProject.getRemark());
-            money.setText(mProject.getMoney() + "");
-            if (mProject.getConsumeType() == 1) {
-                t_total_count.setText(mProject.getMoney() + "");
-            } else if (mProject.getConsumeType() == 2) {
-                t_total_count.setText(mProject.getTotalCount() + "");
+            if (MyApp.USE_LC) {
+                mProjectLC = (ProjectLC) getIntent().getParcelableExtra("bean");
+                remark.setText(mProjectLC.getRemark());
+                money.setText(mProjectLC.getMoney() + "");
+                if (mProjectLC.getConsumeType() == 1) {
+                    t_total_count.setText(mProjectLC.getMoney() + "");
+                } else if (mProjectLC.getConsumeType() == 2) {
+                    t_total_count.setText(mProjectLC.getTotalCount() + "");
+                }
+                btn_delete.setVisibility(View.VISIBLE);
+                String userDate = mProjectLC.getDate();
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
+                name.setText(mProjectLC.getName());
+            } else {
+                mProject = (Project) getIntent().getSerializableExtra("bean");
+                remark.setText(mProject.getRemark());
+                money.setText(mProject.getMoney() + "");
+                if (mProject.getConsumeType() == 1) {
+                    t_total_count.setText(mProject.getMoney() + "");
+                } else if (mProject.getConsumeType() == 2) {
+                    t_total_count.setText(mProject.getTotalCount() + "");
+                }
+                btn_delete.setVisibility(View.VISIBLE);
+                String userDate = mProject.getDate();
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
+                name.setText(mProject.getName());
             }
-            btn_delete.setVisibility(View.VISIBLE);
-            String userDate = mProject.getDate();
-            if (!TextUtils.isEmpty(userDate)) {
-                Date curDate = DateUtils.getCurDate(userDate, format);
-                days = DateUtils.date2Str(curDate, format);
-                mTimeTv.setText(userDate);
-            }
-            name.setText(mProject.getName());
+
         } else if (action.equals("add")) {
             btn_delete.setVisibility(View.GONE);
         }
@@ -183,51 +211,125 @@ public class ProjectDetailActivity extends BaseActivity {
                 String remarkStr = remark.getText().toString();
                 String moneyStr = money.getText().toString();
                 String nameStr = name.getText().toString();
-
-                mProject.setType(spn_type.getSelectedItemPosition() + 1);
-                mProject.setConsumeType(consumeType.getSelectedItemPosition() + 1);
-                if (!TextUtils.isEmpty(numberStr)) {
-                    mProject.setTotalCount(Integer.valueOf(numberStr));
+                if (MyApp.USE_LC) {
+                    mProjectLC.setType(spn_type.getSelectedItemPosition() + 1);
+                    mProjectLC.setConsumeType(consumeType.getSelectedItemPosition() + 1);
+                    if (!TextUtils.isEmpty(numberStr)) {
+                        mProjectLC.setTotalCount(Integer.valueOf(numberStr));
+                    }
+                    mProjectLC.setMoney(Double.valueOf(moneyStr));
+                    mProjectLC.setDate(days);
+                    mProjectLC.setRemark(remarkStr);
+                    mProjectLC.setOperator(LCUser.getCurrentUser());
+                    mProjectLC.setName(nameStr);
+                } else {
+                    mProject.setType(spn_type.getSelectedItemPosition() + 1);
+                    mProject.setConsumeType(consumeType.getSelectedItemPosition() + 1);
+                    if (!TextUtils.isEmpty(numberStr)) {
+                        mProject.setTotalCount(Integer.valueOf(numberStr));
+                    }
+                    mProject.setMoney(Double.valueOf(moneyStr));
+                    mProject.setDate(days);
+                    mProject.setRemark(remarkStr);
+                    mProject.setOperator(BmobUser.getCurrentUser(User.class));
+                    mProject.setName(nameStr);
                 }
-                mProject.setMoney(Double.valueOf(moneyStr));
-                mProject.setDate(days);
-                mProject.setRemark(remarkStr);
-                mProject.setOperator(BmobUser.getCurrentUser(User.class));
-                mProject.setName(nameStr);
                 ProgressUtils.show(getSubActivity());
 
-                if (action.equals("add")) {
-                    mProject.save(new SaveListener<String>() {
-                        @Override
-                        public void done(String objectId, BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
 
-                            if (e == null) {
-                                Toast.makeText(getSubActivity(), "保存成功：",
+                if (action.equals("add")) {
+                    if (MyApp.USE_LC) {
+                        mProjectLC.saveInBackground().subscribe(new Observer<LCObject>() {
+                            public void onSubscribe(Disposable disposable) {
+                            }
+
+                            public void onNext(LCObject todo) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                Toast.makeText(getSubActivity(), "保存成功：" + todo.getObjectId(),
                                         Toast.LENGTH_SHORT).show();
                                 finish();
-                            } else {
-                                Toast.makeText(getSubActivity(), "保存失败：", Toast.LENGTH_SHORT).show();
+
+
                             }
-                        }
-                    });
+
+                            public void onError(Throwable throwable) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                // 异常处理
+                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+
+                            }
+
+                            public void onComplete() {
+                            }
+                        });
+                    } else {
+                        mProject.save(new SaveListener<String>() {
+                            @Override
+                            public void done(String objectId, BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                if (e == null) {
+                                    Toast.makeText(getSubActivity(), "保存成功：",
+                                            Toast.LENGTH_SHORT).show();
+                                    finish();
+                                } else {
+                                    Toast.makeText(getSubActivity(), "保存失败：", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }
+
 
                 } else {
-                    mProject.update(new UpdateListener() {
-                        @Override
-                        public void done(BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
+                    if (MyApp.USE_LC) {
+                        LCObject todo = LCObject.createWithoutData("ProjectLC", mProjectLC.getObjectId());
+                        ProjectLC.createWithoutData(todo, mProjectLC);
+                        mProjectLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                            public void onSubscribe(Disposable disposable) {
+                            }
 
-                            if (e == null) {
-                                Toast.makeText(getSubActivity(), "保存成功：",
+                            public void onNext(LCObject todo) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                Toast.makeText(getSubActivity(), "修改成功：" + todo.getObjectId(),
                                         Toast.LENGTH_SHORT).show();
                                 finish();
-                            } else {
-                                Toast.makeText(getSubActivity(), "保存失败：",
-                                        Toast.LENGTH_SHORT).show();
+
+
                             }
-                        }
-                    });
+
+                            public void onError(Throwable throwable) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                // 异常处理
+                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_LONG).show();
+
+                            }
+
+                            public void onComplete() {
+                            }
+                        });
+                    } else {
+                        mProject.update(new UpdateListener() {
+                            @Override
+                            public void done(BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                if (e == null) {
+                                    Toast.makeText(getSubActivity(), "保存成功：",
+                                            Toast.LENGTH_SHORT).show();
+                                    finish();
+                                } else {
+                                    Toast.makeText(getSubActivity(), "保存失败：",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }
+
+
                 }
             }
         });
@@ -236,35 +338,66 @@ public class ProjectDetailActivity extends BaseActivity {
             public void onClick(View v) {
                 new AlertDialog.Builder(getSubActivity())
                         .setTitle("提示")
-                        .setMessage("确定要删除 " + mProject.getName() + " 项目吗")
+                        .setMessage("确定要删除 " + (MyApp.USE_LC ? mProjectLC.getName() : mProject.getName()) + " 项目吗")
                         .setNegativeButton("取消", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
 
                             }
                         }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mProject.setDelete(true);
-                        ProgressUtils.show(getSubActivity());
-
-                        mProject.update(new UpdateListener() {
                             @Override
-                            public void done(BmobException e) {
-                                ProgressUtils.dismiss(getSubActivity());
+                            public void onClick(DialogInterface dialog, int which) {
+                                mProject.setDelete(true);
+                                ProgressUtils.show(getSubActivity());
+                                if (MyApp.USE_LC) {
+                                    mProjectLC.setDelete(true);
+                                    LCObject todo = LCObject.createWithoutData("ProjectLC", mProjectLC.getObjectId());
+                                    ProjectLC.createWithoutData(todo, mProjectLC);
+                                    mProjectLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                                        public void onSubscribe(Disposable disposable) {
+                                        }
 
-                                if (e == null) {
-                                    Toast.makeText(getSubActivity(), "删除成功：",
-                                            Toast.LENGTH_SHORT).show();
-                                    finish();
+                                        public void onNext(LCObject todo) {
+                                            ProgressUtils.dismiss(getSubActivity());
+
+                                            Toast.makeText(getSubActivity(), "删除成功：",
+                                                    Toast.LENGTH_SHORT).show();
+                                            finish();
+
+
+                                        }
+
+                                        public void onError(Throwable throwable) {
+                                            ProgressUtils.dismiss(getSubActivity());
+
+                                            // 异常处理
+                                            Toast.makeText(getSubActivity(), "删除失败：" + Log.getStackTraceString(throwable),
+                                                    Toast.LENGTH_SHORT).show();
+
+                                        }
+
+                                        public void onComplete() {
+                                        }
+                                    });
                                 } else {
-                                    Toast.makeText(getSubActivity(), "删除失败：",
-                                            Toast.LENGTH_SHORT).show();
+                                    mProject.update(new UpdateListener() {
+                                        @Override
+                                        public void done(BmobException e) {
+                                            ProgressUtils.dismiss(getSubActivity());
+
+                                            if (e == null) {
+                                                Toast.makeText(getSubActivity(), "删除成功：",
+                                                        Toast.LENGTH_SHORT).show();
+                                                finish();
+                                            } else {
+                                                Toast.makeText(getSubActivity(), "删除失败：",
+                                                        Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
+                                    });
                                 }
                             }
-                        });
-                    }
-                }).show();
+                        }).show();
 
 
             }

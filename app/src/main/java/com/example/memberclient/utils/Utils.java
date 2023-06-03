@@ -14,6 +14,7 @@ import com.example.memberclient.model.ConsumeRecord;
 import com.example.memberclient.model.Project;
 import com.example.memberclient.model.Source;
 import com.example.memberclient.model.User2;
+import com.example.memberclient.model.UserLC;
 import com.google.gson.Gson;
 
 import java.io.BufferedReader;
@@ -31,47 +32,44 @@ import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
 import cn.bmob.v3.listener.QueryListListener;
 import cn.bmob.v3.util.FileUtils;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
 
 public class Utils {
     public static List sConsumeRecordResult = new ArrayList<>();
     public static List sUserResult = new ArrayList<>();
     public static List sConsumeProjectResult = new ArrayList<>();
-    public static int count=0;
+    public static int count = 0;
+
     @TargetApi(Build.VERSION_CODES.FROYO)
-    public synchronized static  void save(Context context, ISaveCallback callback){
+    public synchronized static void save(Context context, ISaveCallback callback) {
         final File externalCacheDir = context.getExternalCacheDir();
-         count=0;
-        Source source=new Source();
-        BmobQuery<User2>  bmobQuery = new BmobQuery<User2>();
+        count = 0;
+        Source source = new Source();
+        BmobQuery<User2> bmobQuery = new BmobQuery<User2>();
         bmobQuery.addWhereEqualTo("type", "2")
                 .addWhereEqualTo("delete", false)
                 .order("-newNumber,-createdAt");
 //        final Object lock=new Object();
-        queryUser(bmobQuery, 500, 0, new FindListener<User2>() {
+        queryBombUser(bmobQuery, 500, 0, new FindListener<User2>() {
             @Override
             public void done(List<User2> list, BmobException e) {
 
-                Gson gson=new Gson();
+                Gson gson = new Gson();
                 String s = gson.toJson(list);
-                Log.e("tf_test","user="+list.size());
-                File file =new File(externalCacheDir,"user.json");
+                Log.e("tf_test", "user=" + list.size());
+                File file = new File(externalCacheDir, "user.json");
                 try {
-                    FileUtils.writeStringToFile(file,s,"utf-8");
+                    FileUtils.writeStringToFile(file, s, "utf-8");
                 } catch (IOException ioException) {
                     ioException.printStackTrace();
                 }
-                source.users=list;
+                source.users = list;
                 count++;
-                write2local(context,source,count, callback);
-
-//                        List<User2> result = gson.fromJson(s, new TypeToken<List<User2>>() {
-//                        }.getType());
-//                        File dataDir = getContext().getDataDir();
-//                lock.notifyAll();
+                write2local(context, source, count, callback);
             }
 
         });
-
 
 
         BmobQuery<Project> query = new BmobQuery<>();
@@ -80,23 +78,18 @@ public class Utils {
                 .findObjects(new FindListener<Project>() {
                     @Override
                     public void done(List<Project> list, BmobException e) {
-                        Gson gson=new Gson();
+                        Gson gson = new Gson();
                         String s = gson.toJson(list);
-                        Log.e("tf_test","project="+list.size());
-                        File file =new File(externalCacheDir,"project.json");
+                        Log.e("tf_test", "project=" + list.size());
+                        File file = new File(externalCacheDir, "project.json");
                         try {
-                            FileUtils.writeStringToFile(file,s,"utf-8");
+                            FileUtils.writeStringToFile(file, s, "utf-8");
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        source.projects=list;
+                        source.projects = list;
                         count++;
-                        write2local(context,source,count,callback);
-
-//                        List<User2> result = gson.fromJson(s, new TypeToken<List<User2>>() {
-//                        }.getType());
-//                        File dataDir = getContext().getDataDir();
-//                lock.notifyAll();
+                        write2local(context, source, count, callback);
                     }
 
 
@@ -112,17 +105,17 @@ public class Utils {
             public void done(List<ConsumeRecord> list, BmobException e) {
 
                 if (e == null) {
-                    Gson gson=new Gson();
+                    Gson gson = new Gson();
                     String s = gson.toJson(list);
 
                     File file = new File(externalCacheDir, "ConsumeRecord.json");
-                    Log.e("tf_test",file.getAbsolutePath());
-                    Log.e("tf_test","queryConsumeRecord="+list.size());
-                    source.crs=list;
+                    Log.e("tf_test", file.getAbsolutePath());
+                    Log.e("tf_test", "queryConsumeRecord=" + list.size());
+                    source.crs = list;
                     count++;
-                    write2local(context,source,count, callback);
+                    write2local(context, source, count, callback);
                     try {
-                        FileUtils.writeStringToFile(file,s,"utf-8");
+                        FileUtils.writeStringToFile(file, s, "utf-8");
                     } catch (IOException ioException) {
                         ioException.printStackTrace();
                     }
@@ -133,7 +126,6 @@ public class Utils {
 
             }
         });
-
 
 
 //        try {
@@ -149,18 +141,18 @@ public class Utils {
             @Override
             public void done(List<ConsumeProject> list, BmobException e) {
                 if (e == null) {
-                    source.cps=list;
+                    source.cps = list;
                     count++;
-                    write2local(context,source,count, callback);
-                    Gson gson=new Gson();
+                    write2local(context, source, count, callback);
+                    Gson gson = new Gson();
                     String s = gson.toJson(list);
 
                     File file = new File(externalCacheDir, "ConsumeProject.json");
-                    Log.e("tf_test",file.getAbsolutePath());
-                    Log.e("tf_test","ConsumeProject="+list.size());
+                    Log.e("tf_test", file.getAbsolutePath());
+                    Log.e("tf_test", "ConsumeProject=" + list.size());
 
                     try {
-                        FileUtils.writeStringToFile(file,s,"utf-8");
+                        FileUtils.writeStringToFile(file, s, "utf-8");
                     } catch (IOException ioException) {
                         ioException.printStackTrace();
                     }
@@ -174,17 +166,17 @@ public class Utils {
     }
 
     private static void write2local(Context context, Source source, int count, ISaveCallback callback) {
-        Log.e("tf_test","write2local="+count);
+        Log.e("tf_test", "write2local=" + count);
         final File externalCacheDir = context.getExternalCacheDir();
 
-        if (count==4){
-            Gson gson=new Gson();
+        if (count == 4) {
+            Gson gson = new Gson();
             String s = gson.toJson(source);
             File file = new File(externalCacheDir, "source.json");
-            Log.e("tf_test","write2local="+file.getAbsolutePath());
+            Log.e("tf_test", "write2local=" + file.getAbsolutePath());
             callback.onSave(source);
             try {
-                FileUtils.writeStringToFile(file,s,"utf-8");
+                FileUtils.writeStringToFile(file, s, "utf-8");
             } catch (IOException ioException) {
                 ioException.printStackTrace();
             }
@@ -204,7 +196,7 @@ public class Utils {
             @Override
             public void done(List<ConsumeRecord> list, BmobException e) {
 
-                Log.e("tf_test", "queryConsumeRecord list=" +(list!=null? list.size():0) + ",e=" + Log.getStackTraceString(e));
+                Log.e("tf_test", "queryConsumeRecord list=" + (list != null ? list.size() : 0) + ",e=" + Log.getStackTraceString(e));
                 if (e == null) {
                     sConsumeRecordResult.addAll(list);
                     if (list.size() < limit) {
@@ -247,7 +239,7 @@ public class Utils {
         bmobQuery.findObjects(proxy);
     }
 
-    public static void queryUser(final BmobQuery<User2> bmobQuery, final int limit, final int skip, final FindListener<User2> findListener) {
+    public static void queryBombUser(final BmobQuery<User2> bmobQuery, final int limit, final int skip, final FindListener<User2> findListener) {
         if (skip == 0) {
             sUserResult = new ArrayList<User2>();
         }
@@ -264,7 +256,7 @@ public class Utils {
                     if (list.size() < limit) {
                         findListener.done(sUserResult, null);
                     } else {
-                        queryUser(bmobQuery, limit, skip + limit, findListener);
+                        queryBombUser(bmobQuery, limit, skip + limit, findListener);
                     }
                 } else {
                     findListener.done(list, e);
@@ -319,7 +311,70 @@ public class Utils {
 
     }
 
-    public static String getJson(String fileName,Context context) {
+    public static List<UserLC> queryLCUser() {
+        ArrayList<LCObject> source = new ArrayList<>();
+        ArrayList<UserLC> result = new ArrayList<>();
+        queryLCUser(1000, 0, source);
+        if (source.isEmpty()) {
+            return result;
+        }
+        for (LCObject object : source) {
+            result.add(UserLC.toBean(object));
+        }
+        return result;
+    }
+
+    public static List<LCObject> queryLCUser(int limit, int skip, List<LCObject> result) {
+        List<LCObject> UserLCs = new LCQuery<>("UserLC")
+//                .whereEqualTo("delete", false)
+                .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+        Log.e("tf_test","UserLCs="+UserLCs.size()+",limit="+limit+",skip="+skip);
+        if (UserLCs.size() > 0) {
+            result.addAll(UserLCs);
+        }
+        if (UserLCs.size() == limit) {
+            queryLCUser(limit, skip + limit, result);
+        }
+        return result;
+    }
+    public static List<LCObject> queryLCConsumeProject(int limit, int skip, List<LCObject> result) {
+        try {
+            List<LCObject> UserLCs = new LCQuery<>("ConsumeProjectLC")
+//                    .whereEqualTo("delete", false)
+                    .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+            Log.e("tf_test","ConsumeProjectLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
+            if (UserLCs.size() > 0) {
+                result.addAll(UserLCs);
+            }
+            if (UserLCs.size() == limit) {
+                queryLCConsumeProject(limit, skip + limit, result);
+            }
+        }catch (Exception e){
+            Log.e("tf_test",Log.getStackTraceString(e));
+        }
+
+        return result;
+    }
+    public static List<LCObject> queryLCConsumeRecord(int limit, int skip, List<LCObject> result) {
+        try {
+            List<LCObject> UserLCs = new LCQuery<>("ConsumeRecordLC")
+//                    .whereEqualTo("delete", false)
+                    .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+            Log.e("tf_test","ConsumeRecordLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
+            if (UserLCs.size() > 0) {
+                result.addAll(UserLCs);
+            }
+            if (UserLCs.size() == limit) {
+                queryLCConsumeRecord(limit, skip + limit, result);
+            }
+        }catch (Exception e){
+            Log.e("tf_test","ConsumeRecordLC："+Log.getStackTraceString(e));
+        }
+
+        return result;
+    }
+
+    public static String getJson(String fileName, Context context) {
         //将json数据变成字符串
         StringBuilder stringBuilder = new StringBuilder();
         try {

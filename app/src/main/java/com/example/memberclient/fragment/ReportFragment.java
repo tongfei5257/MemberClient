@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.ui.ConsumeProjectActivity;
 import com.example.memberclient.model.ConsumeProject;
 import com.example.memberclient.model.ConsumeRecord;
@@ -53,6 +54,7 @@ import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.datatype.BmobDate;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
+import cn.leancloud.LCUser;
 
 public class ReportFragment extends BaseFragment {
 
@@ -136,8 +138,12 @@ public class ReportFragment extends BaseFragment {
             }
         });
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
-        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
-
+//        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        if (MyApp.USE_LC){
+            user.setText("当前操作人:" +  LCUser.getCurrentUser().getUsername());
+        }else {
+            user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        }
         myAdapter = new MyAdapter(this.getContext());
         myAdapter.setData(datas);
         recyclerView.setAdapter(myAdapter);

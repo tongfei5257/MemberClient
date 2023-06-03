@@ -10,7 +10,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.User;
+import com.example.memberclient.model.User2LC;
 import com.example.memberclient.utils.CommonUtils;
 import com.example.memberclient.utils.ToastUtil;
 
@@ -23,6 +25,9 @@ import butterknife.Bind;
 import butterknife.OnClick;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.SaveListener;
+import cn.leancloud.LCUser;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 public class RegisterActivity extends BaseActivity {
 
@@ -88,26 +93,50 @@ public class RegisterActivity extends BaseActivity {
         if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(pass)
                 && !TextUtils.isEmpty(userName)
         ) {
-            final User user = new User();
-            user.setUsername(name);
-            user.setPassword(pass);
-            user.setType("1");
-            user.setName(userName);
-            user.setRemark("管理员");
-            user.setPass(pass);
-            user.signUp(new SaveListener<User>() {
-                @Override
-                public void done(User user, BmobException e) {
-                    if (e == null) {
+            if (MyApp.USE_LC){
+                // 创建实例
+                User2LC user = new User2LC();
+                user.setUsername(name);
+                user.setPassword(pass);
+                user.setType("1");
+                user.setName(userName);
+                user.setRemark("管理员");
+                user.setPass(pass);
+
+                user.signUpInBackground().subscribe(new Observer<LCUser>() {
+                    public void onSubscribe(Disposable disposable) {}
+                    public void onNext(LCUser user) {
                         ToastUtil.showShort(getSubActivity(), "注册成功：" + user.getUsername());
                         RegisterActivity.this.finish();
-
-                    } else {
-                        ToastUtil.showShort(getSubActivity(), "注册失败：" + user.getUsername());
-
                     }
-                }
-            });
+                    public void onError(Throwable throwable) {
+                        // 注册失败（通常是因为用户名已被使用）
+                        ToastUtil.showShort(getSubActivity(), "注册失败：" + user.getUsername());
+                    }
+                    public void onComplete() {}
+                });
+            }else {
+                final User user = new User();
+                user.setUsername(name);
+                user.setPassword(pass);
+                user.setType("1");
+                user.setName(userName);
+                user.setRemark("管理员");
+                user.setPass(pass);
+                user.signUp(new SaveListener<User>() {
+                    @Override
+                    public void done(User user, BmobException e) {
+                        if (e == null) {
+                            ToastUtil.showShort(getSubActivity(), "注册成功：" + user.getUsername());
+                            RegisterActivity.this.finish();
+
+                        } else {
+                            ToastUtil.showShort(getSubActivity(), "注册失败：" + user.getUsername());
+
+                        }
+                    }
+                });
+            }
 
         } else {
             ToastUtil.showShort(this, "请填写完整信息");

@@ -12,6 +12,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +23,7 @@ import androidx.fragment.app.Fragment;
 import com.example.memberclient.BuildConfig;
 import com.example.memberclient.ISaveCallback;
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.ConsumeProject;
 import com.example.memberclient.model.ConsumeRecord;
 import com.example.memberclient.model.Project;
@@ -31,6 +34,7 @@ import com.example.memberclient.ui.LoginActivity;
 import com.example.memberclient.ui.MainActivity;
 import com.example.memberclient.model.User;
 import com.example.memberclient.utils.ProgressUtils;
+import com.example.memberclient.utils.SPUtils;
 import com.example.memberclient.utils.ToastUtil;
 import com.example.memberclient.utils.Utils;
 import com.google.gson.Gson;
@@ -54,6 +58,7 @@ import butterknife.Bind;
 import butterknife.OnClick;
 import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.util.FileUtils;
+import cn.leancloud.LCUser;
 
 
 /**
@@ -66,6 +71,8 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
     CircleImageView mIvUserPhoto;
     @Bind(R.id.me_username)
     TextView mUsername;
+    @Bind(R.id.cb_use_lc)
+    CheckBox cb_use_lc;
     private MainActivity mContext;
     private static final int UPDATE_USER = 0X1;
 
@@ -87,12 +94,26 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = super.onCreateView(inflater, container, savedInstanceState);
         mUsername = view.findViewById(R.id.me_username);
+        cb_use_lc = view.findViewById(R.id.cb_use_lc);
+        cb_use_lc.setChecked(SPUtils.getBoolean(getActivity().getApplicationContext(), "user_lc", false));
+        cb_use_lc.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SPUtils.saveBoolean(getContext(), "user_lc", isChecked);
+                MyApp.USE_LC = isChecked;
+            }
+        });
         view.findViewById(R.id.ll_me_about).setOnClickListener(this);
         view.findViewById(R.id.ll_modify_password).setOnClickListener(this);
         view.findViewById(R.id.ll_loginout).setOnClickListener(this);
 
-        User currentUser = BmobUser.getCurrentUser(User.class);
-        mUsername.setText(currentUser.getName() + "  " + currentUser.getUsername());
+//        User currentUser = BmobUser.getCurrentUser(User.class);
+//        mUsername.setText(currentUser.getName() + "  " + currentUser.getUsername());
+        if (MyApp.USE_LC) {
+            mUsername.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+        } else {
+            mUsername.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        }
         return view;
     }
 
@@ -140,7 +161,11 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
             }
             break;
             case R.id.ll_loginout: {
-                BmobUser.logOut();
+                if (MyApp.USE_LC) {
+
+                } else {
+                    BmobUser.logOut();
+                }
                 startActivity(new Intent(mContext, LoginActivity.class));
             }
             break;
@@ -152,7 +177,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
 //                if (true){
 //                    return;
 //                }
-                ProgressUtils.show(getContext(),"导出中,请稍后...");
+                ProgressUtils.show(getContext(), "导出中,请稍后...");
                 Utils.save(getContext(), new ISaveCallback() {
                     @Override
                     public void onSave(Source source) {
@@ -165,8 +190,8 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                                         @Override
                                         public void run() {
                                             ProgressUtils.dismiss();
-                                            ToastUtil.show(getContext(),"导出成功", Toast.LENGTH_LONG);
-                                            shareFile(getContext(),file);
+                                            ToastUtil.show(getContext(), "导出成功", Toast.LENGTH_LONG);
+                                            shareFile(getContext(), file);
                                         }
                                     });
                                 } catch (Exception e) {
@@ -175,7 +200,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                                         @Override
                                         public void run() {
                                             ProgressUtils.dismiss();
-                                            ToastUtil.show(getContext(),"导出失败"+Log.getStackTraceString(e), Toast.LENGTH_LONG);
+                                            ToastUtil.show(getContext(), "导出失败" + Log.getStackTraceString(e), Toast.LENGTH_LONG);
 
                                         }
                                     });
@@ -192,13 +217,13 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
         }
     }
 
-    public  void shareFile(Context context, File  file) {
+    public void shareFile(Context context, File file) {
         try {
-            Log.e("tf_test","shareFile="+file.getAbsolutePath());
+            Log.e("tf_test", "shareFile=" + file.getAbsolutePath());
             if (null != file && file.exists()) {
                 Intent share = new Intent(Intent.ACTION_SEND);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    Uri contentUri = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".fileprovider",file);
+                    Uri contentUri = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".fileprovider", file);
                     share.putExtra(Intent.EXTRA_STREAM, contentUri);
                     share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 } else {
@@ -211,36 +236,36 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
             } else {
                 Toast.makeText(context, "分享文件不存在", Toast.LENGTH_SHORT).show();
             }
-        }catch (Exception e){
-            Log.e("tf_test",Log.getStackTraceString(e));
+        } catch (Exception e) {
+            Log.e("tf_test", Log.getStackTraceString(e));
         }
 
     }
 
     private File parseSource(Source source) throws Exception {
-        Log.d( "tf_test","开始解析数据......");
+        Log.d("tf_test", "开始解析数据......");
 
 
         List<ConsumeRecord> crList = source.crs;
         List<User2> userList = source.users;
-        List<ConsumeProject> cpList =source.cps;
-        List<Project> pList =source.projects;
+        List<ConsumeProject> cpList = source.cps;
+        List<Project> pList = source.projects;
 
 
-        Log.d( "tf_test","开始绑定CP....1");
+        Log.d("tf_test", "开始绑定CP....1");
         int errorCount = 0;
         for (ConsumeProject invdata : cpList) {
             User2 userId = invdata.user;
             for (User2 tUser : userList) {
                 if (tUser.getObjectId() == null) {
-                    Log.d( "tf_test","tUser 异常：" + errorCount);
+                    Log.d("tf_test", "tUser 异常：" + errorCount);
                     errorCount++;
                     continue;
                 }
                 if (tUser.getObjectId().equals(userId.getObjectId())) {
                     Project project = Project.find(pList, invdata.getParent());
                     if (project == null) {
-                        Log.d( "tf_test","find project 异常=" + invdata);
+                        Log.d("tf_test", "find project 异常=" + invdata);
                         continue;
                     }
                     ConsumeProject consumeProject = new ConsumeProject(invdata);
@@ -250,7 +275,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                 }
             }
         }
-        Log.d( "tf_test","开始合并CR....2");
+        Log.d("tf_test", "开始合并CR....2");
         int count = -1;
 
         for (ConsumeRecord consumeRecord : crList) {
@@ -259,7 +284,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
             User2 temp = from.getUser();
             if (from.getObjectId() == null || temp.getObjectId() == null || temp.getObjectId().equals("")
                     || from.getObjectId().equals("null")) {
-                Log.d( "tf_test","开始解析ConsumeRecord第" + count + "个发生异常");
+                Log.d("tf_test", "开始解析ConsumeRecord第" + count + "个发生异常");
                 continue;
             }
             for (User2 tUser : userList) {
@@ -268,12 +293,12 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                 }
             }
         }
-        Log.d( "tf_test","合并CR结束");
-        Log.d( "tf_test","开始生成execl表格");
+        Log.d("tf_test", "合并CR结束");
+        Log.d("tf_test", "开始生成execl表格");
 //            HSSFWorkbook
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd-hh-mm");
         String format = simpleDateFormat.format(new Date());
-        File excelFile = new File(getActivity().getExternalCacheDir(),"会员数据("+format+").xls");
+        File excelFile = new File(getActivity().getExternalCacheDir(), "会员数据(" + format + ").xls");
         FileOutputStream out = new FileOutputStream(excelFile);
         // 第一步，创建一个workbook，对应一个Excel文件
         HSSFWorkbook workbook = new HSSFWorkbook();
@@ -284,22 +309,22 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
         HSSFSheet hssfSheet2 = workbook.createSheet("会员表");
         HSSFSheet hssfSheet3 = workbook.createSheet("会员消费记录表");
         // 第三步，在sheet中添加表头第0行,注意老版本poi对Excel的行数列数有限制short
-        int index=0;
-        int index2=0,index3=0;
+        int index = 0;
+        int index2 = 0, index3 = 0;
 
         HSSFRow row = userSt.createRow(index);
         // 第四步，创建单元格，并设置值表头 设置表头居中
         HSSFCellStyle hssfCellStyle = workbook.createCellStyle();
-        String[] titles=new String[]{
-                "编号", "姓名","电话号码","备注","创建时间","cTime","uTime","会员Id","项目(名称)"
-                ,"项目(总次数)","项目(剩余次数)","项目id"
+        String[] titles = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id"
         };
-        String[] titles2=new String[]{
-                "编号", "姓名","电话号码","备注","创建时间","cTime","uTime","会员Id"
+        String[] titles2 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id"
         };
-        String[] titles3=new String[]{
-                "编号", "姓名","电话号码","备注","创建时间","cTime","uTime","项目(名称)"
-                ,"项目(总次数)","项目(剩余次数)","项目id","消费项目","消费时间","消费CTime","消费uTime","消费备注","消费Id"
+        String[] titles3 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id", "消费项目", "消费时间", "消费CTime", "消费uTime", "消费备注", "消费Id"
         };
 
         HSSFRow row2 = hssfSheet2.createRow(index2);
@@ -334,8 +359,8 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
             row2.createCell(5).setCellValue(user2.getCreatedAt());
             row2.createCell(6).setCellValue(user2.getUpdatedAt());
             row2.createCell(7).setCellValue(user2.getObjectId());
-            if (consumeProjects.size()==0){
-                Log.d( "tf_test",user2+"未有绑定项目");
+            if (consumeProjects.size() == 0) {
+                Log.d("tf_test", user2 + "未有绑定项目");
                 index++;
                 row = userSt.createRow(index);
                 // 第六步，创建单元格，并设置值
@@ -351,7 +376,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
             }
 
 
-            for (ConsumeProject consumeProject:consumeProjects) {
+            for (ConsumeProject consumeProject : consumeProjects) {
                 index++;
                 row = userSt.createRow(index);
                 row.createCell(0).setCellValue(user2.newNumber);
@@ -368,10 +393,10 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                 row.createCell(11).setCellValue(consumeProject.getObjectId());
 
                 List<ConsumeRecord> consumeRecords = consumeProject.consumeRecords;
-                if (consumeRecords.size()>0){
-                    for (ConsumeRecord consumeRecord:consumeRecords) {
-                        if (consumeRecord==null||consumeRecord.getObjectId()==null){
-                            Log.d( "tf_test",consumeRecord+"有异常");
+                if (consumeRecords.size() > 0) {
+                    for (ConsumeRecord consumeRecord : consumeRecords) {
+                        if (consumeRecord == null || consumeRecord.getObjectId() == null) {
+                            Log.d("tf_test", consumeRecord + "有异常");
                             continue;
                         }
                         index3++;
@@ -401,7 +426,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
         workbook.write(out);
         out.flush();
         out.close();
-        Log.d( "tf_test","生成excel结束:"+excelFile.getAbsolutePath());
+        Log.d("tf_test", "生成excel结束:" + excelFile.getAbsolutePath());
         return excelFile;
     }
 

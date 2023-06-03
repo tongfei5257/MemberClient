@@ -8,12 +8,14 @@ import android.widget.RadioButton;
 import android.widget.TabHost;
 
 import com.example.memberclient.model.Project;
+import com.example.memberclient.utils.SPUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 import cn.bmob.v3.Bmob;
+import cn.leancloud.LeanCloud;
 
 
 /**
@@ -32,7 +34,7 @@ public class MyApp extends Application {
 	private RadioButton cartButton;
 	private RadioButton HomeButton;
     public boolean m_bKeyRight = true;
-
+	public static boolean USE_LC = false;
 
 
 	private List<Activity> activityList = new LinkedList();
@@ -42,12 +44,15 @@ public class MyApp extends Application {
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		USE_LC=SPUtils.getBoolean(getApplicationContext(),"user_lc",false);
 //		Bmob.resetDomain("http://bmob.hyglapp.cn/8/");
 		Bmob.resetDomain("http://bmob2.hyglapp.cn/8/");
 //		//Bmob初始化
         Bmob.initialize(this.getApplicationContext(),
 //                "42261a6ee51b4e08f8b2b1807b1bb476");
                 "1e3f7a39c4badc886a82d2614e055684");
+//		文档：https://docs.leancloud.cn/sdk/storage/guide/setup-android-securely/
+		LeanCloud.initialize(this, "VfiMLNa7kYYeIoaZ3G1fAYnq-gzGzoHsz", "zW8AZ3qPMVWZ617oFyXAICWU", "http://bmob5.hyglapp.cn");
 	}
 
 	

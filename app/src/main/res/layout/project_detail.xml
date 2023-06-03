@@ -107,7 +107,7 @@
             android:layout_marginRight="10dp"
             android:layout_weight="8"
             android:gravity="center|left"
-
+            android:inputType="number"
             android:hint="必填" />
     </LinearLayout>
 
@@ -133,6 +133,7 @@
             android:layout_weight="8"
             android:gravity="center|left"
             android:hint="必填"
+
             android:inputType="number" />
     </LinearLayout>
 

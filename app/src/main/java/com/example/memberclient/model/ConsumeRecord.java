@@ -1,26 +1,29 @@
 package com.example.memberclient.model;
 
+import java.util.List;
+
 import cn.bmob.v3.BmobObject;
+import cn.leancloud.LCObject;
 
 public class ConsumeRecord extends BmobObject {
     /**
      * 所属什么项目
      */
-    private ConsumeProject from;
+    public ConsumeProject from;
 
-    private String name;
+    public String name;
 
-    private double money;
+    public double money;
     //    操作人
-    private User operator;
+    public User operator;
 
-    private int count = 1;
-    private boolean delete;
+    public int count = 1;
+    public boolean delete;
 
-    private String date;
-    private String remark;
+    public String date;
+    public String remark;
     public String oldId;
-    private String oldCrateTime;
+    public String oldCrateTime;
     public String oldUpdateTime;
     public ConsumeProject getFrom() {
         return from;
@@ -101,5 +104,16 @@ public class ConsumeRecord extends BmobObject {
         user2.oldCrateTime = getCreatedAt();
         user2.oldUpdateTime = getUpdatedAt();
         return user2;
+    }
+    public boolean find(List<LCObject> lcObjects) {
+        if (lcObjects==null||lcObjects.isEmpty()){
+            return false;
+        }
+        for (LCObject lcObject:lcObjects) {
+            if (getObjectId().equals(lcObject.getString("bmId"))){
+                return true;
+            }
+        }
+        return false;
     }
 }

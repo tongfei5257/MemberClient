@@ -147,7 +147,6 @@
         android:id="@+id/ll_loginout"
         style="@style/me_ll_style"
         android:layout_marginTop="50dp"
-
         >
 
         <TextView
@@ -157,4 +156,11 @@
 
             />
     </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/cb_use_lc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="是否使用leancloud"
+        />
 </LinearLayout>

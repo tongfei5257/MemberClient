@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import cn.bmob.v3.BmobObject;
+import cn.leancloud.LCObject;
 
 /**
  *
@@ -12,21 +13,21 @@ public class ConsumeProject extends BmobObject {
     /**
      * 父项目
      */
-    private Project parent;
+    public Project parent;
 
     /**
      * 所属用户
      */
     public User2 user;
 
-    private boolean delete;
+    public boolean delete;
 
     //    操作人
-    private User operator;
+    public User operator;
     /**
      * 消费时间
      */
-    private String date;
+    public String date;
     public String oldId;
     public String oldCrateTime;
 
@@ -115,4 +116,15 @@ public class ConsumeProject extends BmobObject {
         return totalCount;
     }
 
+    public boolean find(List<LCObject> lcObjects) {
+        if (lcObjects==null||lcObjects.isEmpty()){
+            return false;
+        }
+        for (LCObject lcObject:lcObjects) {
+            if (getObjectId().equals(lcObject.getString("bmId"))){
+                return true;
+            }
+        }
+        return false;
+    }
 }

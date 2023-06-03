@@ -1,6 +1,8 @@
 package com.example.memberclient.fragment;
 
 
+import static cn.bmob.v3.Bmob.getApplicationContext;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -8,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -28,9 +31,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.memberclient.R;
 import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.ConsumeProject;
+import com.example.memberclient.model.ConsumeProjectLC;
 import com.example.memberclient.model.ConsumeRecord;
+import com.example.memberclient.model.ConsumeRecordLC;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.Source;
+import com.example.memberclient.model.UserLC;
 import com.example.memberclient.ui.ConsumeProjectActivity;
 import com.example.memberclient.ui.MemberActivity;
 import com.example.memberclient.ui.MemberDetailActivity;
@@ -38,13 +45,11 @@ import com.example.memberclient.ui.ProjectActivity;
 import com.example.memberclient.model.User;
 import com.example.memberclient.model.User2;
 import com.example.memberclient.utils.ProgressUtils;
+import com.example.memberclient.utils.ToastUtil;
 import com.example.memberclient.utils.Utils;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -59,7 +64,12 @@ import cn.bmob.v3.datatype.BatchResult;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
 import cn.bmob.v3.listener.QueryListListener;
-import cn.bmob.v3.util.FileUtils;
+import cn.leancloud.LCException;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
+import cn.leancloud.LCUser;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 
 public class DetailFragment extends BaseFragment {
@@ -96,6 +106,307 @@ public class DetailFragment extends BaseFragment {
     private MyAdapter myAdapter;
     private List<User2> datas = new ArrayList<>();
     private BmobQuery<User2> bmobQuery;
+    private static final int MSG_TRANS_USER = 1;
+    private static final int MSG_TRANS_CP = 2;
+    private static final int MSG_TRANS_CR = 3;
+    private static final int MSG_TRANS_END = 4;
+    private Handler mHandler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case MSG_TRANS_USER:
+                    transUser();
+                    break;
+                case MSG_TRANS_CP:
+                    transCp();
+                    break;
+                case MSG_TRANS_CR:
+                    transCR();
+                    break;
+                case MSG_TRANS_END:
+                    ToastUtil.show(getContext(),"转换完成",Toast.LENGTH_LONG);
+                    break;
+            }
+        }
+    };
+
+
+    private void transUser() {
+//                =============================用户转换============================
+
+        bmobQuery = new BmobQuery<>();
+        bmobQuery.addWhereEqualTo("type", "2")
+//                .addWhereEqualTo("delete", false)
+                .order("-newNumber,-createdAt");
+        Utils.queryBombUser(bmobQuery, 500, 0, new FindListener<User2>() {
+            @Override
+            public void done(List<User2> list, BmobException e) {
+                Log.e("tf_test", "user=" + list.size() + ",e=" + e);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        List<LCObject> projectLCList = new ArrayList<>();
+                        Utils.queryLCUser(1000, 0, projectLCList);
+                        Log.e("tf_test", "UserLC  start...=" + projectLCList.size());
+                        // comments 包含与 post 相关联的评论
+                        List<UserLC> userLCS = new ArrayList<>();
+                        if (!projectLCList.isEmpty()) {
+                            Log.e("tf_test", "UserLC  start .size=" + projectLCList.size());
+                            for (User2 user2 : list) {
+                                if (!user2.find(projectLCList)) {
+                                    userLCS.add(UserLC.newInstance(user2).saveV2());
+                                }
+                            }
+
+                        } else {
+                            for (User2 user2 : list) {
+                                userLCS.add(UserLC.newInstance(user2).saveV2());
+                            }
+                        }
+                        if (userLCS.isEmpty()) {
+                            Log.e("tf_test", "User2 userLCS.isEmpty");
+                            mHandler.sendEmptyMessage(MSG_TRANS_CP);
+                            return;
+                        }
+                        Log.e("tf_test", "User2 save userLCS.size=" + userLCS.size());
+
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // 批量更新
+                                try {
+                                    Log.e("tf_test", "User2 save start");
+                                    LCObject.saveAll(userLCS);
+                                    Log.e("tf_test", "User2 save end");
+                                    mHandler.sendEmptyMessage(MSG_TRANS_CP);
+                                } catch (LCException ex) {
+                                    Log.e("tf_test", "btn_transform:" + Log.getStackTraceString(ex));
+                                }
+                            }
+                        }).start();
+                    }
+                }).start();
+            }
+        });
+//                =============================用户转换end============================
+    }
+
+    private void transCp() {
+        BmobQuery<ConsumeProject> query1 = new BmobQuery<>();
+        query1.order("-createdAt")
+//                .addWhereEqualTo("delete", false)
+                .include("operator,parent,user")
+                .setLimit(300);
+
+        Utils.queryConsumeProject(query1, 150, 0, new FindListener<ConsumeProject>() {
+            @Override
+            public void done(List<ConsumeProject> list, BmobException e) {
+                Log.e("tf_test", "cp=" + list.size() + ",e=" + e);
+                if (e == null) {
+
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            List<ConsumeProjectLC> cpLcsResult = new ArrayList<>();
+//                            for (ConsumeProject user2 : list) {
+//                                ConsumeProjectLC cp = ConsumeProjectLC.newInstance(user2).saveV2();
+//                                if (TextUtils.isEmpty(cp.user.bmId)){
+//                                    Log.e("tf_test","user 匹配 user object为空："+cp.bmId);
+//                                    continue;
+//                                }
+//                                cpLcsResult.add(cp);
+//                            }
+
+                            List<LCObject> CpLCs = new ArrayList<>();
+                            Utils.queryLCConsumeProject(1000, 0, CpLCs);
+
+                            if (CpLCs.isEmpty()) {
+                                for (ConsumeProject user2 : list) {
+                                    ConsumeProjectLC cp = ConsumeProjectLC.newInstance(user2).saveV2();
+                                    if (TextUtils.isEmpty(cp.user.bmId)) {
+                                        Log.e("tf_test", "user 匹配 user object为空：" + cp.bmId);
+                                        continue;
+                                    }
+                                    cpLcsResult.add(cp);
+                                }
+                            } else {
+                                for (ConsumeProject cp : list) {
+                                    if (!cp.find(CpLCs)) {
+                                        cpLcsResult.add(ConsumeProjectLC.newInstance(cp).saveV2());
+                                    }
+                                }
+                            }
+                            if (cpLcsResult.isEmpty()) {
+                                Log.e("tf_test", "ConsumeProjectLC cpLcsResult.isEmpty");
+                                mHandler.sendEmptyMessage(MSG_TRANS_CR);
+                                return;
+                            }
+                            Log.e("tf_test", "ConsumeProjectLC cpLcsResult=" + cpLcsResult.size());
+                            List<LCObject> UserLCs = new ArrayList<>();
+                            Utils.queryLCUser(1000, 0, UserLCs);
+                            List<LCObject> ProjectLCs = new LCQuery<>("ProjectLC").whereEqualTo("delete", false)
+                                    .orderByAscending("createdAt").find();
+                            int count = 0;
+                            for (ConsumeProjectLC consumeProjectLC : cpLcsResult) {
+                                boolean isFind = false;
+                                for (LCObject lcObject : UserLCs) {
+                                    if (lcObject.getString("bmId").equals(consumeProjectLC.user.bmId)) {
+                                        count++;
+//                                        Log.e("tf_test","user 匹配:"+count);
+                                        isFind = true;
+//                                        consumeProjectLC.user.setObjectId(lcObject.getObjectId());
+//                                        consumeProjectLC.saveV2();
+                                        LCObject user = LCObject.createWithoutData("User2LC", lcObject.getObjectId());
+                                        consumeProjectLC.put("user", user);
+                                    }
+                                }
+                                if (!isFind) {
+                                    Log.e("tf_test", "user 匹配 未找到:" + consumeProjectLC.bmId);
+                                }
+                                isFind = false;
+                                for (LCObject lcObject : ProjectLCs) {
+                                    if (lcObject.getString("bmId").equals(consumeProjectLC.parent.bmId)) {
+//                                        consumeProjectLC.parent.setObjectId(lcObject.getObjectId());
+//                                        consumeProjectLC.saveV2();
+                                        isFind = true;
+                                        LCObject project = LCObject.createWithoutData("ProjectLC", lcObject.getObjectId());
+                                        consumeProjectLC.put("parent", project);
+                                    }
+                                }
+                                if (!isFind) {
+                                    Log.e("tf_test", "project 匹配 未找到:" + consumeProjectLC.bmId);
+                                }
+                            }
+                            // 批量更新
+                            try {
+                                Log.e("tf_test", "save ConsumeProjectLC start=" + cpLcsResult.size());
+                                LCObject.saveAll(cpLcsResult);
+                                Log.e("tf_test", "save ConsumeProjectLC end");
+                                mHandler.sendEmptyMessage(MSG_TRANS_CR);
+                            } catch (Exception ex) {
+                                Log.e("tf_test", "btn_transform:" + Log.getStackTraceString(ex));
+                            }
+                        }
+                    }).start();
+                }
+            }
+        });
+    }
+
+    private void transCR() {
+        BmobQuery<ConsumeRecord> query2 = new BmobQuery<>();
+        query2.order("-createdAt")
+//                .addWhereEqualTo("delete", false)
+//                .include("from,operator,from.user,from.parent");
+                .include("from,operator");
+        Utils.queryConsumeRecord(query2, 200, 0, new FindListener<ConsumeRecord>() {
+            @Override
+            public void done(List<ConsumeRecord> list, BmobException e) {
+                Log.e("tf_test", "cr=" + list.size() + ",e=" + e);
+                if (e == null) {
+
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            List<ConsumeRecordLC> cpLcsResult = new ArrayList<>();
+//                            for (ConsumeProject user2 : list) {
+//                                ConsumeProjectLC cp = ConsumeProjectLC.newInstance(user2).saveV2();
+//                                if (TextUtils.isEmpty(cp.user.bmId)){
+//                                    Log.e("tf_test","user 匹配 user object为空："+cp.bmId);
+//                                    continue;
+//                                }
+//                                cpLcsResult.add(cp);
+//                            }
+
+                            List<LCObject> CpLCs = new ArrayList<>();
+                            Utils.queryLCConsumeRecord(1000, 0, CpLCs);
+
+                            if (CpLCs.isEmpty()) {
+                                for (ConsumeRecord user2 : list) {
+                                    ConsumeRecordLC cr = ConsumeRecordLC.newInstanceV2(user2).saveV2();
+                                    if (TextUtils.isEmpty(cr.from.bmId)) {
+                                        Log.e("tf_test", "cr 匹配 from object为空：" + cr.bmId);
+                                        continue;
+                                    }
+                                    cpLcsResult.add(cr);
+                                }
+                            } else {
+                                for (ConsumeRecord cp : list) {
+                                    if (!cp.find(CpLCs)) {
+                                        cpLcsResult.add(ConsumeRecordLC.newInstanceV2(cp).saveV2());
+                                    }
+                                }
+                            }
+                            if (cpLcsResult.isEmpty()) {
+                                Log.e("tf_test", "ConsumeRecordLC cpLcsResult.isEmpty");
+//                                mHandler.sendEmptyMessage(MSG_TRANS_CR);
+                                return;
+                            }
+                            Log.e("tf_test", "ConsumeRecordLC cpLcsResult=" + cpLcsResult.size());
+                            List<LCObject> CpLCss = new ArrayList<>();
+                            Utils.queryLCConsumeProject(1000, 0, CpLCss);
+                            int count = 0;
+                            Iterator<ConsumeRecordLC> iterator = cpLcsResult.iterator();
+                            boolean isFind = false;
+                            while (iterator.hasNext()) {
+                                ConsumeRecordLC next = iterator.next();
+                                for (LCObject lcObject : CpLCss) {
+                                    if (lcObject.getString("bmId").equals(next.from.bmId)) {
+                                        count++;
+//                                        Log.e("tf_test","user 匹配:"+count);
+                                        isFind = true;
+//                                        consumeProjectLC.user.setObjectId(lcObject.getObjectId());
+//                                        consumeProjectLC.saveV2();
+                                        LCObject user = LCObject.createWithoutData("ConsumeProjectLC", lcObject.getObjectId());
+                                        next.put("from", user);
+                                    }
+                                }
+
+                                if (!isFind) {
+                                    Log.e("tf_test", "ConsumeRecordLC cp 匹配 未找到:" + next.bmId);
+                                    iterator.remove();
+                                }
+                            }
+//                            for (ConsumeRecordLC consumeProjectLC : cpLcsResult) {
+//                                boolean isFind=false;
+//                                for (LCObject lcObject : CpLCss) {
+//                                    if (lcObject.getString("bmId").equals(consumeProjectLC.from.bmId)) {
+//                                        count++;
+////                                        Log.e("tf_test","user 匹配:"+count);
+//                                        isFind=true;
+////                                        consumeProjectLC.user.setObjectId(lcObject.getObjectId());
+////                                        consumeProjectLC.saveV2();
+//                                        LCObject user = LCObject.createWithoutData("ConsumeProjectLC", lcObject.getObjectId());
+//                                        consumeProjectLC.put("from", user);
+//                                    }
+//                                }
+//
+//                                if (!isFind){
+//                                    Log.e("tf_test","ConsumeRecordLC cp 匹配 未找到:"+consumeProjectLC.bmId);
+//                                }
+//                            }
+                            if (cpLcsResult.isEmpty()) {
+                                Log.e("tf_test", "ConsumeProjectLC cpLcsResult.isEmpty");
+                                mHandler.sendEmptyMessage(MSG_TRANS_END);
+                                return;
+                            }
+                            // 批量更新
+                            try {
+                                Log.e("tf_test", "save ConsumeRecordLC start=" + cpLcsResult.size());
+                                LCObject.saveAll(cpLcsResult);
+                                Log.e("tf_test", "save ConsumeRecordLC end");
+//                                mHandler.sendEmptyMessage(MSG_TRANS_CR);
+                            } catch (Exception ex) {
+                                Log.e("tf_test", "btn_transform:" + Log.getStackTraceString(ex));
+                            }
+                        }
+                    }).start();
+                }
+
+            }
+        });
+    }
+
 
     @Override
 //    protected int getLayoutId() {
@@ -128,10 +439,13 @@ public class DetailFragment extends BaseFragment {
         size = root.findViewById(R.id.size);
         editText = root.findViewById(R.id.et_search_content);
         recyclerView = root.findViewById(R.id.recyclerView);
+        Button btn_transform = root.findViewById(R.id.btn_transform);
         MyApp myApp = (MyApp) getContext().getApplicationContext();
-
-
-        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        if (MyApp.USE_LC) {
+            user.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+        } else {
+            user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        }
         myAdapter = new MyAdapter(this.getActivity());
         recyclerView.setLayoutManager(new LinearLayoutManager(mContext, LinearLayoutManager.VERTICAL, false));
         myAdapter.setData(new ArrayList<User2>());
@@ -143,8 +457,85 @@ public class DetailFragment extends BaseFragment {
                 search(s, false);
             }
         });
-        search("", true);
+//        search("", true);
+        btn_transform.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //                =============================Project============================
+                BmobQuery<Project> query = new BmobQuery<>();
+                query.addWhereEqualTo("delete", false)
+                        .order("-createdAt")
+                        .findObjects(new FindListener<Project>() {
+                            @Override
+                            public void done(List<Project> list, BmobException e) {
+                                Log.e("tf_test", "Project=" + list.size() + ",e=" + e);
 
+                                if (e == null) {
+                                    final LCQuery<LCObject> priorityQuery = new LCQuery<>("ProjectLC");
+                                    priorityQuery.whereEqualTo("delete", false)
+                                            .orderByAscending("createdAt")
+                                            .findInBackground().subscribe((Observer<? super List<LCObject>>) new Observer<List<LCObject>>() {
+                                                public void onSubscribe(Disposable disposable) {
+                                                }
+
+                                                public void onNext(List<LCObject> projectLCList) {
+                                                    // comments 包含与 post 相关联的评论
+                                                    List<ProjectLC> userLCS = new ArrayList<>();
+                                                    if (projectLCList != null && !projectLCList.isEmpty()) {
+
+                                                        for (Project user2 : list) {
+                                                            if (!user2.find(projectLCList)) {
+                                                                userLCS.add(ProjectLC.newInstance(user2).saveV2());
+                                                            }
+                                                        }
+
+                                                    } else {
+                                                        for (Project user2 : list) {
+                                                            userLCS.add(ProjectLC.newInstance(user2).saveV2());
+                                                        }
+                                                    }
+                                                    if (userLCS.isEmpty()) {
+                                                        Log.e("tf_test", "Project userLCS.isEmpty");
+                                                        mHandler.sendEmptyMessage(MSG_TRANS_USER);
+                                                        return;
+                                                    }
+                                                    new Thread(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            // 批量更新
+                                                            try {
+                                                                Log.e("tf_test", "Project save start");
+                                                                LCObject.saveAll(userLCS);
+                                                                Log.e("tf_test", "Project save end");
+                                                                mHandler.sendEmptyMessage(MSG_TRANS_USER);
+                                                            } catch (LCException ex) {
+                                                                Log.e("tf_test", "btn_transform:" + Log.getStackTraceString(ex));
+                                                            }
+                                                        }
+                                                    }).start();
+                                                }
+
+                                                public void onError(Throwable throwable) {
+
+                                                    Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+
+                                                }
+
+                                                public void onComplete() {
+                                                }
+                                            });
+
+                                }
+                            }
+
+                        });
+
+
+//                =============================Project end============================
+
+
+            }
+        });
         btn_member.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -270,7 +661,7 @@ public class DetailFragment extends BaseFragment {
                     public void run() {
                     }
                 }).start();
-                Utils.save(getContext(),null);
+                Utils.save(getContext(), null);
 
 //                Utils.queryConsumeProject();
             }
@@ -414,30 +805,30 @@ public class DetailFragment extends BaseFragment {
                                 Utils.queryConsumeRecord(query2, 100, 0, new FindListener<ConsumeRecord>() {
                                     @Override
                                     public void done(List<ConsumeRecord> list, BmobException e) {
-                                        if (e!=null){
-                                            list=new ArrayList<>();
+                                        if (e != null) {
+                                            list = new ArrayList<>();
                                         }
-                                        Log.e("tf_test","queryConsumeRecord="+list.size()+",e="+e+"，crs="+tempCrs.size());
-                                        for (ConsumeRecord record:list) {
+                                        Log.e("tf_test", "queryConsumeRecord=" + list.size() + ",e=" + e + "，crs=" + tempCrs.size());
+                                        for (ConsumeRecord record : list) {
                                             Iterator<ConsumeRecord> iterator = tempCrs.iterator();
-                                            while (iterator.hasNext()){
+                                            while (iterator.hasNext()) {
                                                 ConsumeRecord next = iterator.next();
-                                                if (next.oldId.equals(record.oldId)){
+                                                if (next.oldId.equals(record.oldId)) {
                                                     iterator.remove();
-                                                    Log.e("tf_test",next.oldId+" remove");
+                                                    Log.e("tf_test", next.oldId + " remove");
                                                 }
                                             }
                                         }
-                                        Log.e("tf_test","after="+tempCrs.size());
-                                        for (ConsumeRecord cr:tempCrs) {
+                                        Log.e("tf_test", "after=" + tempCrs.size());
+                                        for (ConsumeRecord cr : tempCrs) {
                                             ConsumeProject from = cr.getFrom();
-                                            if (from==null||from.getObjectId()==null){
-                                                Log.e("tf_test",cr+" 有异常");
+                                            if (from == null || from.getObjectId() == null) {
+                                                Log.e("tf_test", cr + " 有异常");
 
                                                 continue;
                                             }
-                                            for (ConsumeProject cp:consumeProjects) {
-                                                if (from.getObjectId().equals(cp.oldId)){
+                                            for (ConsumeProject cp : consumeProjects) {
+                                                if (from.getObjectId().equals(cp.oldId)) {
                                                     cr.setFrom(cp);
                                                 }
                                             }
@@ -470,32 +861,48 @@ public class DetailFragment extends BaseFragment {
 //                }
             }
         });
-
-        BmobQuery<Project> query = new BmobQuery<>();
-
-        query.addWhereEqualTo("delete", false)
-                .order("-createdAt")
-                .findObjects(new FindListener<Project>() {
-                    @Override
-                    public void done(List<Project> list, BmobException e) {
-                        if (e == null) {
-                            myApp.projectBeans = list;
-
-                        } else {
-                            Toast.makeText(myApp, "搜索异常", Toast.LENGTH_SHORT).show();
+        if (MyApp.USE_LC) {
+            final LCQuery<ProjectLC> priorityQuery = new LCQuery<>("ProjectLC");
+            priorityQuery.whereEqualTo("delete", false)
+                    .orderByAscending("createdAt")
+                    .findInBackground().subscribe(new Observer<List<ProjectLC>>() {
+                        public void onSubscribe(Disposable disposable) {
                         }
-                    }
 
-                });
+                        public void onNext(List<ProjectLC> projectLCList) {
+                            // comments 包含与 post 相关联的评论
+                        }
+
+                        public void onError(Throwable throwable) {
+                        }
+
+                        public void onComplete() {
+                        }
+                    });
+        } else {
+            BmobQuery<Project> query = new BmobQuery<>();
+            query.addWhereEqualTo("delete", false)
+                    .order("-createdAt")
+                    .findObjects(new FindListener<Project>() {
+                        @Override
+                        public void done(List<Project> list, BmobException e) {
+                            if (e == null) {
+                                myApp.projectBeans = list;
+
+                            } else {
+                                Toast.makeText(myApp, "搜索异常", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                    });
+        }
 
 
-        BmobQuery<ConsumeProject> query1 = new BmobQuery<>();
-        query1.addWhereEqualTo("delete", false)
-                .order("-createdAt")
-                .include("operator,parent,user")
-                .setLimit(300);
-
-
+//        BmobQuery<ConsumeProject> query1 = new BmobQuery<>();
+//        query1.addWhereEqualTo("delete", false)
+//                .order("-createdAt")
+//                .include("operator,parent,user")
+//                .setLimit(300);
 //        Utils.queryConsumeProject(query1, 150, 0, new FindListener<ConsumeProject>() {
 //            @Override
 //            public void done(List<ConsumeProject> list, BmobException e) {
@@ -508,62 +915,79 @@ public class DetailFragment extends BaseFragment {
 //            }
 //        });
     }
-    private List<ConsumeProject> consumeProjects;
-    private void search(final String source, boolean req) {
-        if (req) {
-            ProgressUtils.show(getActivity());
-//            query.order("-score,createdAt");
-            bmobQuery = new BmobQuery<>();
-            bmobQuery.addWhereEqualTo("type", "2")
-                    .addWhereEqualTo("delete", false)
-                    .order("-newNumber,-createdAt").setLimit(500)
 
-                    .findObjects(new FindListener<User2>() {
-                        @Override
-                        public void done(List<User2> list, BmobException e) {
-                            ProgressUtils.dismiss();
-                            if (e == null) {
-                                datas.clear();
-                                datas = list;
-                                bmobQuery = new BmobQuery<>();
-                                bmobQuery.addWhereEqualTo("type", "2")
-                                        .addWhereEqualTo("delete", false).setSkip(500)
-                                        .order("-newNumber,-createdAt").setLimit(500);
-                                bmobQuery.findObjects(new FindListener<User2>() {
-                                    @RequiresApi(api = Build.VERSION_CODES.N)
-                                    @Override
-                                    public void done(List<User2> list, BmobException e) {
-                                        if (e == null) {
-                                            List<User2> temp = new ArrayList<>();
-                                            datas.addAll(list);
-                                            datas.sort(new Comparator<User2>() {
-                                                @Override
-                                                public int compare(User2 o1, User2 o2) {
-                                                    return o2.getNewNumber() - o1.getNewNumber();
+    private List<ConsumeProject> consumeProjects;
+
+    private void search(final String source, boolean req) {
+//        if (true) {
+//            return;
+//        }
+        if (req) {
+            if (MyApp.USE_LC) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        List<UserLC> userLCS = Utils.queryLCUser();
+
+                    }
+                }).start();
+            } else {
+                ProgressUtils.show(getActivity());
+//            query.order("-score,createdAt");
+                bmobQuery = new BmobQuery<>();
+                bmobQuery.addWhereEqualTo("type", "2")
+                        .addWhereEqualTo("delete", false)
+                        .order("-newNumber,-createdAt").setLimit(500)
+
+                        .findObjects(new FindListener<User2>() {
+                            @Override
+                            public void done(List<User2> list, BmobException e) {
+                                ProgressUtils.dismiss();
+                                if (e == null) {
+                                    datas.clear();
+                                    datas = list;
+                                    bmobQuery = new BmobQuery<>();
+                                    bmobQuery.addWhereEqualTo("type", "2")
+                                            .addWhereEqualTo("delete", false).setSkip(500)
+                                            .order("-newNumber,-createdAt").setLimit(500);
+                                    bmobQuery.findObjects(new FindListener<User2>() {
+                                        @RequiresApi(api = Build.VERSION_CODES.N)
+                                        @Override
+                                        public void done(List<User2> list, BmobException e) {
+                                            if (e == null) {
+                                                List<User2> temp = new ArrayList<>();
+                                                datas.addAll(list);
+                                                datas.sort(new Comparator<User2>() {
+                                                    @Override
+                                                    public int compare(User2 o1, User2 o2) {
+                                                        return o2.getNewNumber() - o1.getNewNumber();
+                                                    }
+                                                });
+                                                size.setText("会员总数:" + datas.size());
+                                                for (User2 user : datas) {
+                                                    if (TextUtils.isEmpty(source)) {
+                                                        temp.add(user);
+                                                        continue;
+                                                    }
+                                                    if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
+                                                        temp.add(user);
+                                                    }
                                                 }
-                                            });
-                                            size.setText("会员总数:" + datas.size());
-                                            for (User2 user : datas) {
-                                                if (TextUtils.isEmpty(source)) {
-                                                    temp.add(user);
-                                                    continue;
-                                                }
-                                                if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
-                                                    temp.add(user);
-                                                }
+                                                myAdapter.setData(temp);
+                                                myAdapter.notifyDataSetChanged();
+                                            } else {
+                                                Toast.makeText(mContext, "搜索异常", Toast.LENGTH_SHORT).show();
                                             }
-                                            myAdapter.setData(temp);
-                                            myAdapter.notifyDataSetChanged();
-                                        } else {
-                                            Toast.makeText(mContext, "搜索异常", Toast.LENGTH_SHORT).show();
                                         }
-                                    }
-                                });
-                            } else {
-                                Toast.makeText(mContext, "搜索异常", Toast.LENGTH_SHORT).show();
+                                    });
+                                } else {
+                                    Toast.makeText(mContext, "搜索异常", Toast.LENGTH_SHORT).show();
+                                }
                             }
-                        }
-                    });
+                        });
+            }
+
+
         } else {
             List<User2> temp = new ArrayList<>();
             for (User2 user : datas) {

@@ -3,47 +3,48 @@ package com.example.memberclient.model;
 import java.util.List;
 
 import cn.bmob.v3.BmobObject;
+import cn.leancloud.LCObject;
 
 public class Project extends BmobObject {
-    private String name;
+    public String name;
     /**
      * 金额
      */
-    private double money;
+    public double money;
 
     /**
      * 类型
      * 鲜花 1
      * 乐园 2
      */
-    private int type;
+    public int type;
 
     /**
      * 消费类型  1 使用金额  2 计次
      */
-    private int consumeType;
+    public int consumeType;
 
     /**
      * 剩余金额
      */
-    private double remainMoney;
+    public double remainMoney;
 
     /**
      * 总次数
      */
-    private int totalCount;
+    public int totalCount;
 
     /**
      * 剩余次数
      */
-    private int remainCount;
+    public int remainCount;
 
-    private String remark;
+    public String remark;
 
-    private String date;
+    public String date;
     //    操作人
-    private User operator;
-    private boolean delete;
+    public User operator;
+    public boolean delete;
     public String oldId;
 
     public String getName() {
@@ -228,5 +229,17 @@ public class Project extends BmobObject {
             }
         }
         return null;
+    }
+
+    public boolean find(List<LCObject> lcObjects) {
+        if (lcObjects==null||lcObjects.isEmpty()){
+            return false;
+        }
+        for (LCObject lcObject:lcObjects) {
+            if (getObjectId().equals(lcObject.getString("bmId"))){
+                return true;
+            }
+        }
+        return false;
     }
 }

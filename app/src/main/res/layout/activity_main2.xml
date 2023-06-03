@@ -79,6 +79,14 @@
         android:onClick="modify"
         android:text="获取数据"
         android:visibility="gone" />
+    <Button
+        android:id="@+id/btn_transform"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:onClick="transform"
+        android:text="数据转换"
+        android:visibility="visible" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

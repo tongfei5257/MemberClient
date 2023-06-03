@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import cn.bmob.v3.BmobObject;
+import cn.leancloud.LCObject;
 
 public class User2 extends BmobObject {
 
@@ -189,6 +190,17 @@ public class User2 extends BmobObject {
                 break;
             }
         }
+    }
+    public boolean find(List<LCObject> lcObjects) {
+        if (lcObjects==null||lcObjects.isEmpty()){
+            return false;
+        }
+        for (LCObject lcObject:lcObjects) {
+            if (getObjectId().equals(lcObject.getString("bmId"))){
+                return true;
+            }
+        }
+        return false;
     }
 
 }

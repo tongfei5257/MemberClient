@@ -1,5 +1,6 @@
 package com.example.memberclient.ui;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -19,7 +20,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.User;
 import com.example.memberclient.utils.ProgressUtils;
 import com.google.gson.Gson;
@@ -33,6 +36,11 @@ import cn.bmob.v3.BmobQuery;
 import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
+import cn.leancloud.LCUser;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 /**
  * 项目
@@ -53,7 +61,9 @@ public class ProjectActivity extends BaseActivity {
     @Bind(R.id.recyclerView)
     RecyclerView recyclerView;
     private List<Project> datas = new ArrayList<>();
+    private List<ProjectLC> datasLC = new ArrayList<>();
     private MyAdapter myAdapter;
+    private MyAdapterLC myAdapterLC;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,11 +85,20 @@ public class ProjectActivity extends BaseActivity {
     }
 
     private void initData() {
-        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
-        myAdapter = new MyAdapter(this);
+//        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+        if (MyApp.USE_LC) {
+            user.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+            myAdapterLC = new MyAdapterLC(this);
+            myAdapterLC.setData(new ArrayList<ProjectLC>());
+            recyclerView.setAdapter(myAdapterLC);
+
+        } else {
+            user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
+            myAdapter = new MyAdapter(this);
+            myAdapter.setData(new ArrayList<Project>());
+            recyclerView.setAdapter(myAdapter);
+        }
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
-        myAdapter.setData(new ArrayList<Project>());
-        recyclerView.setAdapter(myAdapter);
         mSearch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -129,53 +148,117 @@ public class ProjectActivity extends BaseActivity {
         return this;
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void search(final String source, boolean req) {
         if (req) {
             ProgressUtils.show(getSubActivity());
-
-            BmobQuery<Project> query = new BmobQuery<>();
-            query.addWhereEqualTo("delete", false)
-                    .order("-createdAt")
-                    .findObjects(new FindListener<Project>() {
-                        @Override
-                        public void done(List<Project> list, BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
-                            if (e == null) {
-                                datas = list;
-                                Gson gson=new Gson();
-                                String s = gson.toJson(list);
-                                Log.e("tf_test",s);
-                                List<Project> temp = new ArrayList<>();
-                                for (Project user : list) {
-                                    if (TextUtils.isEmpty(source)) {
-                                        temp.add(user);
-                                        continue;
-                                    }
-                                    if ((user.getName().contains(source))) {
-                                        temp.add(user);
-                                    }
-                                }
-                                myAdapter.setData(temp);
-                                myAdapter.notifyDataSetChanged();
-                            } else {
-                                Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+            if (MyApp.USE_LC) {
+                final LCQuery<LCObject> priorityQuery = new LCQuery<>("ProjectLC");
+                priorityQuery.whereEqualTo("delete", false)
+                        .orderByAscending("createdAt")
+                        .findInBackground().subscribe((Observer<? super List<LCObject>>) new Observer<List<LCObject>>() {
+                            public void onSubscribe(Disposable disposable) {
                             }
-                        }
 
-                    });
-        } else {
-            List<Project> temp = new ArrayList<>();
-            for (Project user : datas) {
-                if (TextUtils.isEmpty(source)) {
-                    temp.add(user);
-                    continue;
-                }
-                if ((user.getName().contains(source))) {
-                    temp.add(user);
-                }
+                            public void onNext(List<LCObject> projectLCList) {
+                                // comments 包含与 post 相关联的评论
+                                ProgressUtils.dismiss(getSubActivity());
+                                if (projectLCList == null || projectLCList.isEmpty()) {
+                                    return;
+                                }
+                                datasLC.clear();
+                                for (LCObject lcObject : projectLCList) {
+                                    datasLC.add(ProjectLC.toBean(lcObject));
+                                }
+
+                                Gson gson = new Gson();
+                                String s = gson.toJson(datasLC);
+                                Log.e("tf_test", s);
+                                    List<ProjectLC> temp = new ArrayList<>();
+                                    for (ProjectLC user : datasLC) {
+                                        if (TextUtils.isEmpty(source)) {
+                                            temp.add(user);
+                                            continue;
+                                        }
+                                        if ((user.getName().contains(source))) {
+                                            temp.add(user);
+                                        }
+                                    }
+                                myAdapterLC.setData(temp);
+                                myAdapterLC.notifyDataSetChanged();
+                            }
+
+                            public void onError(Throwable throwable) {
+                                ProgressUtils.dismiss(getSubActivity());
+                                Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+
+                            }
+
+                            public void onComplete() {
+                            }
+                        });
+            } else {
+                BmobQuery<Project> query = new BmobQuery<>();
+                query.addWhereEqualTo("delete", false)
+                        .order("-createdAt")
+                        .findObjects(new FindListener<Project>() {
+                            @Override
+                            public void done(List<Project> list, BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+                                if (e == null) {
+                                    datas = list;
+                                    Gson gson = new Gson();
+                                    String s = gson.toJson(list);
+                                    Log.e("tf_test", s);
+                                    List<Project> temp = new ArrayList<>();
+                                    for (Project user : list) {
+                                        if (TextUtils.isEmpty(source)) {
+                                            temp.add(user);
+                                            continue;
+                                        }
+                                        if ((user.getName().contains(source))) {
+                                            temp.add(user);
+                                        }
+                                    }
+                                    myAdapter.setData(temp);
+                                    myAdapter.notifyDataSetChanged();
+                                } else {
+                                    Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                        });
             }
-            myAdapter.setData(temp);
-            myAdapter.notifyDataSetChanged();
+
+        } else {
+            if (MyApp.USE_LC) {
+                List<ProjectLC> temp = new ArrayList<>();
+                for (ProjectLC user : datasLC) {
+                    if (TextUtils.isEmpty(source)) {
+                        temp.add(user);
+                        continue;
+                    }
+                    if ((user.getName().contains(source))) {
+                        temp.add(user);
+                    }
+                }
+                myAdapterLC.setData(temp);
+                myAdapterLC.notifyDataSetChanged();
+            } else {
+                List<Project> temp = new ArrayList<>();
+                for (Project user : datas) {
+                    if (TextUtils.isEmpty(source)) {
+                        temp.add(user);
+                        continue;
+                    }
+                    if ((user.getName().contains(source))) {
+                        temp.add(user);
+                    }
+                }
+                myAdapter.setData(temp);
+                myAdapter.notifyDataSetChanged();
+            }
+
         }
 
     }
@@ -225,6 +308,106 @@ public class ProjectActivity extends BaseActivity {
 
 
     }
+
+    private class MyAdapterLC extends RecyclerView.Adapter<ViewHolderLC> {
+
+        private List<ProjectLC> list;
+        Context context;
+
+        public void setData(List<ProjectLC> list) {
+            this.list = list;
+        }
+
+        public MyAdapterLC(Context context) {
+            this.context = context;
+        }
+
+        @Override
+        public ViewHolderLC onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(context).inflate(R.layout.item_recycler_project, parent, false);
+            return new ViewHolderLC(view);
+        }
+
+        @Override
+        public void onBindViewHolder(final ViewHolderLC holder, int position) {
+            final ProjectLC bean = list.get(position);
+            holder.bindView(context, bean);
+
+            holder.card_view.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(getSubActivity(), ProjectDetailActivity.class);
+                    intent.putExtra("action", "edit");
+                    intent.putExtra("bean", bean);
+                    startActivity(intent);
+                }
+            });
+
+
+        }
+
+        @Override
+        public int getItemCount() {
+            return list.size();
+        }
+
+
+    }
+
+    public class ViewHolderLC extends RecyclerView.ViewHolder {
+
+        private TextView name;
+        private TextView phone;
+        private TextView time;
+        private TextView number;
+        private TextView remark;
+        private TextView name1;
+
+        public CardView card_view;
+
+
+        private View.OnClickListener onClickListener;
+
+        public void setOnClickListener(View.OnClickListener onClickListener) {
+            this.onClickListener = onClickListener;
+        }
+
+        public ViewHolderLC(View view) {
+            super(view);
+            name = view.findViewById(R.id.name);
+            phone = view.findViewById(R.id.phone);
+            time = view.findViewById(R.id.time);
+            number = view.findViewById(R.id.number);
+            remark = view.findViewById(R.id.remark);
+            name1 = view.findViewById(R.id.name1);
+            card_view = view.findViewById(R.id.card_view);
+
+        }
+
+        public void bindView(Context context, final ProjectLC bean) {
+            number.setText("类型:" + (bean.getType() == 2 ? "乐园" : "鲜花"));
+            name.setText("金额:" + bean.getMoney() + "元");
+            time.setText((bean.getConsumeType() == 1 ? "金额" : "计次") + "消费");
+            StringBuilder sb = new StringBuilder();
+            sb.append("总");
+            if (bean.getConsumeType() == 1) {
+                sb.append(bean.getMoney());
+                sb.append(" 元");
+            } else {
+                sb.append(bean.getTotalCount());
+                sb.append(" 次");
+            }
+            phone.setText(sb.toString());
+            if (!TextUtils.isEmpty((bean.getRemark()))) {
+                remark.setText("备注:" + bean.getRemark());
+                remark.setVisibility(View.VISIBLE);
+            } else {
+                remark.setVisibility(View.GONE);
+            }
+            name1.setText("名称:" + bean.getName());
+        }
+    }
+
 
     public class ViewHolder extends RecyclerView.ViewHolder {
 
