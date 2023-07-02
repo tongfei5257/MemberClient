@@ -1,12 +1,16 @@
 package com.example.memberclient.model;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import java.text.SimpleDateFormat;
 import java.util.List;
 
 import cn.bmob.v3.BmobObject;
 import cn.leancloud.LCObject;
+import cn.leancloud.LCUser;
 
-public class ConsumeRecordLC extends LCObject {
+public class ConsumeRecordLC extends LCObject implements Parcelable {
     /**
      * 所属什么项目
      */
@@ -28,7 +32,55 @@ public class ConsumeRecordLC extends LCObject {
     public String oldUpdateTime;
     public String bmId;
 
+    public ConsumeRecordLC() {
+    }
 
+    protected ConsumeRecordLC(Parcel in) {
+        from = in.readParcelable(ConsumeProjectLC.class.getClassLoader());
+        name = in.readString();
+        money = in.readDouble();
+        count = in.readInt();
+        delete = in.readByte() != 0;
+        date = in.readString();
+        remark = in.readString();
+        oldId = in.readString();
+        oldCrateTime = in.readString();
+        oldUpdateTime = in.readString();
+        bmId = in.readString();
+        objectId = in.readString();
+    }
+
+    public static final Creator<ConsumeRecordLC> CREATOR = new Creator<ConsumeRecordLC>() {
+        @Override
+        public ConsumeRecordLC createFromParcel(Parcel in) {
+            return new ConsumeRecordLC(in);
+        }
+
+        @Override
+        public ConsumeRecordLC[] newArray(int size) {
+            return new ConsumeRecordLC[size];
+        }
+    };
+
+    public static ConsumeRecordLC toBean(LCObject lcObject) {
+        if (lcObject == null) {
+            return null;
+        }
+        ConsumeRecordLC projectLC = new ConsumeRecordLC();
+        projectLC.from = ConsumeProjectLC.toBean(lcObject.getLCObject("from"));
+        projectLC.delete = lcObject.getBoolean("delete");
+        projectLC.bmId = lcObject.getString("bmId");
+        projectLC.name = lcObject.getString("name");
+        projectLC.date = lcObject.getString("date");
+        projectLC.oldCrateTime = lcObject.getString("oldCrateTime");
+        projectLC.oldId = lcObject.getString("oldId");
+        projectLC.remark = lcObject.getString("remark");
+        projectLC.oldUpdateTime = lcObject.getString("oldUpdateTime");
+        projectLC.count = lcObject.getInt("count");
+        projectLC.objectId = lcObject.getObjectId();
+        return projectLC;
+
+    }
 
     public ConsumeProjectLC getFrom() {
         return from;
@@ -177,12 +229,35 @@ public class ConsumeRecordLC extends LCObject {
         put("bmId", bmId);
         put("oldId", oldId);
         put("oldCrateTime", oldCrateTime);
+        put("remark", remark);
         put("name", name);
         put("count", count);
         put("oldUpdateTime", oldUpdateTime);
+        LCObject operator = LCObject.createWithoutData("_User", LCUser.getCurrentUser().getObjectId());
+        put("operator",operator);
         setObjectId(getObjectId());
         setClassName("ConsumeRecordLC");
         return this;
     }
 
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeParcelable(from, flags);
+        dest.writeString(name);
+        dest.writeDouble(money);
+        dest.writeInt(count);
+        dest.writeByte((byte) (delete ? 1 : 0));
+        dest.writeString(date);
+        dest.writeString(remark);
+        dest.writeString(oldId);
+        dest.writeString(oldCrateTime);
+        dest.writeString(oldUpdateTime);
+        dest.writeString(bmId);
+        dest.writeString(getObjectId());
+    }
 }

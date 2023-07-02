@@ -11,8 +11,10 @@ import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.text.TextUtils;
 
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.DatePicker;
@@ -21,8 +23,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.ConsumeProject;
+import com.example.memberclient.model.ConsumeProjectLC;
 import com.example.memberclient.model.ConsumeRecord;
+import com.example.memberclient.model.ConsumeRecordLC;
 import com.example.memberclient.model.Project;
 import com.example.memberclient.model.User;
 import com.example.memberclient.utils.DateUtils;
@@ -40,6 +45,9 @@ import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.SaveListener;
 import cn.bmob.v3.listener.UpdateListener;
+import cn.leancloud.LCObject;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 
 public class SubConsumeRecordEditActivity extends BaseActivity {
@@ -78,6 +86,8 @@ public class SubConsumeRecordEditActivity extends BaseActivity {
     private List<Project> projectBeans = new ArrayList<>();
     private ConsumeProject consumeProject;
     private ConsumeRecord consumeRecord = new ConsumeRecord();
+    private ConsumeProjectLC consumeProjectLC;
+    private ConsumeRecordLC consumeRecordLC = new ConsumeRecordLC();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -140,52 +150,101 @@ public class SubConsumeRecordEditActivity extends BaseActivity {
 
 
     private void initData() {
-        Serializable bean = getIntent().getSerializableExtra("bean");
-        if (bean instanceof ConsumeProject) {
-            consumeProject = (ConsumeProject) bean;
-        } else {
-            consumeRecord = (ConsumeRecord) bean;
-        }
-        //设置日期选择器初始日期
-        mYear = Integer.parseInt(DateUtils.getCurYear(FORMAT_Y));
-        mMonth = Integer.parseInt(DateUtils.getCurMonth(FORMAT_M));
-        mDay = Integer.parseInt(DateUtils.getCurDay(FORMAT_D));
-        //设置当前 日期
-        String format = "yyyy-MM-dd";
-        days = DateUtils.getCurDateStr(format);
-        mTimeTv.setText(days);
         final String action = getIntent().getStringExtra("action");
-        if (action.equals("edit")) {
-            btn_delete.setVisibility(View.VISIBLE);
-            tv_name.setText(consumeRecord.getName());
-            if (consumeRecord.getFrom().getParent().getConsumeType() == 1) {
-                key_id.setText("金额");
-                tv_phone.setText(consumeRecord.getMoney() + "");
+        if (MyApp.USE_LC){
+            Parcelable bean = getIntent().getParcelableExtra("bean");
+            if (bean instanceof ConsumeProjectLC) {
+                consumeProjectLC = (ConsumeProjectLC) bean;
             } else {
-                key_id.setText("计次");
-                tv_phone.setText(consumeRecord.getCount() + "");
+                consumeRecordLC = (ConsumeRecordLC) bean;
             }
-            String userDate = consumeRecord.getDate();
+            //设置日期选择器初始日期
+            mYear = Integer.parseInt(DateUtils.getCurYear(FORMAT_Y));
+            mMonth = Integer.parseInt(DateUtils.getCurMonth(FORMAT_M));
+            mDay = Integer.parseInt(DateUtils.getCurDay(FORMAT_D));
+            //设置当前 日期
+            String format = "yyyy-MM-dd";
+            days = DateUtils.getCurDateStr(format);
+            mTimeTv.setText(days);
+            if (action.equals("edit")) {
+                btn_delete.setVisibility(View.VISIBLE);
+                tv_name.setText(consumeRecordLC.getName());
+                if (consumeRecordLC.getFrom().getParent().getConsumeType() == 1) {
+                    key_id.setText("金额");
+                    tv_phone.setText(consumeRecordLC.getMoney() + "");
+                } else {
+                    key_id.setText("计次");
+                    tv_phone.setText(consumeRecordLC.getCount() + "");
+                }
+                String userDate = consumeRecordLC.getDate();
 
-            if (!TextUtils.isEmpty(userDate)) {
-                Date curDate = DateUtils.getCurDate(userDate, format);
-                days = DateUtils.date2Str(curDate, format);
-                mTimeTv.setText(userDate);
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
+                remark.setText(consumeRecordLC.getRemark() + "");
+            } else if (action.equals("add")) {
+                setTitle(consumeProjectLC.getUser().getName() + "的消费记录");
+                if (consumeProjectLC.getParent().getConsumeType() == 1) {
+                    key_id.setText("金额");
+                    tv_phone.setText(consumeRecordLC.getMoney() + "");
+                } else {
+                    key_id.setText("计次");
+                    tv_phone.setText(consumeRecordLC.getCount() + "");
+                }
+                btn_delete.setVisibility(View.GONE);
+                btn_consume_record.setVisibility(View.GONE);
+                btn_add_project.setVisibility(View.GONE);
             }
-            remark.setText(consumeRecord.getRemark() + "");
-        } else if (action.equals("add")) {
-            setTitle(consumeProject.getUser().getName() + "的消费记录");
-            if (consumeProject.getParent().getConsumeType() == 1) {
-                key_id.setText("金额");
-                tv_phone.setText(consumeRecord.getMoney() + "");
+        }else {
+            Serializable bean = getIntent().getSerializableExtra("bean");
+            if (bean instanceof ConsumeProject) {
+                consumeProject = (ConsumeProject) bean;
             } else {
-                key_id.setText("计次");
-                tv_phone.setText(consumeRecord.getCount() + "");
+                consumeRecord = (ConsumeRecord) bean;
             }
-            btn_delete.setVisibility(View.GONE);
-            btn_consume_record.setVisibility(View.GONE);
-            btn_add_project.setVisibility(View.GONE);
+            //设置日期选择器初始日期
+            mYear = Integer.parseInt(DateUtils.getCurYear(FORMAT_Y));
+            mMonth = Integer.parseInt(DateUtils.getCurMonth(FORMAT_M));
+            mDay = Integer.parseInt(DateUtils.getCurDay(FORMAT_D));
+            //设置当前 日期
+            String format = "yyyy-MM-dd";
+            days = DateUtils.getCurDateStr(format);
+            mTimeTv.setText(days);
+            if (action.equals("edit")) {
+                btn_delete.setVisibility(View.VISIBLE);
+                tv_name.setText(consumeRecord.getName());
+                if (consumeRecord.getFrom().getParent().getConsumeType() == 1) {
+                    key_id.setText("金额");
+                    tv_phone.setText(consumeRecord.getMoney() + "");
+                } else {
+                    key_id.setText("计次");
+                    tv_phone.setText(consumeRecord.getCount() + "");
+                }
+                String userDate = consumeRecord.getDate();
+
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
+                remark.setText(consumeRecord.getRemark() + "");
+            } else if (action.equals("add")) {
+                setTitle(consumeProject.getUser().getName() + "的消费记录");
+                if (consumeProject.getParent().getConsumeType() == 1) {
+                    key_id.setText("金额");
+                    tv_phone.setText(consumeRecord.getMoney() + "");
+                } else {
+                    key_id.setText("计次");
+                    tv_phone.setText(consumeRecord.getCount() + "");
+                }
+                btn_delete.setVisibility(View.GONE);
+                btn_consume_record.setVisibility(View.GONE);
+                btn_add_project.setVisibility(View.GONE);
+            }
         }
+
 
         btn_update_user.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -199,57 +258,121 @@ public class SubConsumeRecordEditActivity extends BaseActivity {
                     ToastUtil.showShort(getSubActivity(), "请输入必填项");
                     return;
                 }
-
-                consumeRecord.setName(name);
-                consumeRecord.setOperator(BmobUser.getCurrentUser(User.class));
-                consumeRecord.setDate(days);
-                consumeRecord.setRemark(remarkStr);
-                ProgressUtils.show(getSubActivity());
-
-                if (action.equals("add")) {
-                    consumeRecord.setFrom(consumeProject);
-                    if (consumeProject.getParent().getConsumeType() == 1) {
-                        consumeRecord.setMoney(Double.parseDouble(phone));
-                    } else {
-                        consumeRecord.setCount(Integer.parseInt(phone));
-                    }
-
-                    consumeRecord.save(new SaveListener<String>() {
-                        @Override
-                        public void done(String objectId, BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
-
-                            if (e == null) {
-                                Toast.makeText(getSubActivity(), "保存成功：",
-                                        Toast.LENGTH_SHORT).show();
-                                finish();
-                            } else {
-                                Toast.makeText(getSubActivity(), "保存失败：", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-
-                } else {
-                    if (consumeRecord.getFrom().getParent().getConsumeType() == 1) {
-                        consumeRecord.setMoney(Double.parseDouble(phone));
-                    } else {
-                        consumeRecord.setCount(Integer.parseInt(phone));
-                    }
-                    consumeRecord.update(new UpdateListener() {
-                        @Override
-                        public void done(BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
-                            if (e == null) {
-                                Toast.makeText(getSubActivity(), "保存成功：",
-                                        Toast.LENGTH_SHORT).show();
-                                finish();
-                            } else {
-                                Toast.makeText(getSubActivity(), "保存失败：",
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
+                if (MyApp.USE_LC){
+                    consumeRecordLC.setName(name);
+                    consumeRecordLC.setOperator(BmobUser.getCurrentUser(User.class));
+                    consumeRecordLC.setDate(days);
+                    consumeRecordLC.setRemark(remarkStr);
+                }else {
+                    consumeRecord.setName(name);
+                    consumeRecord.setOperator(BmobUser.getCurrentUser(User.class));
+                    consumeRecord.setDate(days);
+                    consumeRecord.setRemark(remarkStr);
                 }
+
+                ProgressUtils.show(getSubActivity());
+                if (MyApp.USE_LC){
+                    if (action.equals("add")) {
+                        consumeRecordLC.setFrom(consumeProjectLC);
+                        if (consumeProjectLC.getParent().getConsumeType() == 1) {
+                            consumeRecordLC.setMoney(Double.parseDouble(phone));
+                        } else {
+                            consumeRecordLC.setCount(Integer.parseInt(phone));
+                        }
+
+                        consumeRecordLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                            public void onSubscribe(Disposable disposable) {
+                            }
+
+                            public void onNext(LCObject todo) {
+                                // 成功保存之后，执行其他逻辑
+                                Toast.makeText(getSubActivity(), "保存成功：",
+                                        Toast.LENGTH_SHORT).show();
+                                finish();
+                            }
+
+                            public void onError(Throwable throwable) {
+                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                            }
+
+                            public void onComplete() {
+                                ProgressUtils.dismiss(getSubActivity());
+                            }
+                        });
+                    } else {
+                        if (consumeRecordLC.getFrom().getParent().getConsumeType() == 1) {
+                            consumeRecordLC.setMoney(Double.parseDouble(phone));
+                        } else {
+                            consumeRecordLC.setCount(Integer.parseInt(phone));
+                        }
+
+                        consumeRecordLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                            public void onSubscribe(Disposable disposable) {
+                            }
+
+                            public void onNext(LCObject todo) {
+                                // 成功保存之后，执行其他逻辑
+                                Toast.makeText(getSubActivity(), "保存成功：",
+                                        Toast.LENGTH_SHORT).show();
+                                finish();
+                            }
+
+                            public void onError(Throwable throwable) {
+                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                            }
+
+                            public void onComplete() {
+                                ProgressUtils.dismiss(getSubActivity());
+                            }
+                        });
+                    }
+                }else {
+                    if (action.equals("add")) {
+                        consumeRecord.setFrom(consumeProject);
+                        if (consumeProject.getParent().getConsumeType() == 1) {
+                            consumeRecord.setMoney(Double.parseDouble(phone));
+                        } else {
+                            consumeRecord.setCount(Integer.parseInt(phone));
+                        }
+
+                        consumeRecord.save(new SaveListener<String>() {
+                            @Override
+                            public void done(String objectId, BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                if (e == null) {
+                                    Toast.makeText(getSubActivity(), "保存成功：",
+                                            Toast.LENGTH_SHORT).show();
+                                    finish();
+                                } else {
+                                    Toast.makeText(getSubActivity(), "保存失败：", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+
+                    } else {
+                        if (consumeRecord.getFrom().getParent().getConsumeType() == 1) {
+                            consumeRecord.setMoney(Double.parseDouble(phone));
+                        } else {
+                            consumeRecord.setCount(Integer.parseInt(phone));
+                        }
+                        consumeRecord.update(new UpdateListener() {
+                            @Override
+                            public void done(BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+                                if (e == null) {
+                                    Toast.makeText(getSubActivity(), "保存成功：",
+                                            Toast.LENGTH_SHORT).show();
+                                    finish();
+                                } else {
+                                    Toast.makeText(getSubActivity(), "保存失败：",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }
+                }
+
             }
         });
         btn_delete.setOnClickListener(new View.OnClickListener() {
@@ -266,20 +389,44 @@ public class SubConsumeRecordEditActivity extends BaseActivity {
                         }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        consumeRecord.setDelete(true);
-                        consumeRecord.update(new UpdateListener() {
-                            @Override
-                            public void done(BmobException e) {
-                                if (e == null) {
+                        if (MyApp.USE_LC){
+                            consumeRecordLC.setDelete(true);
+                            consumeRecordLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                                public void onSubscribe(Disposable disposable) {
+                                }
+
+                                public void onNext(LCObject todo) {
+                                    // 成功保存之后，执行其他逻辑
                                     Toast.makeText(getSubActivity(), "删除成功：",
                                             Toast.LENGTH_SHORT).show();
                                     finish();
-                                } else {
-                                    Toast.makeText(getSubActivity(), "删除失败：",
-                                            Toast.LENGTH_SHORT).show();
                                 }
-                            }
-                        });
+
+                                public void onError(Throwable throwable) {
+                                    Toast.makeText(getSubActivity(), "删除失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                                }
+
+                                public void onComplete() {
+                                    ProgressUtils.dismiss(getSubActivity());
+                                }
+                            });
+                        }else {
+                            consumeRecord.setDelete(true);
+                            consumeRecord.update(new UpdateListener() {
+                                @Override
+                                public void done(BmobException e) {
+                                    if (e == null) {
+                                        Toast.makeText(getSubActivity(), "删除成功：",
+                                                Toast.LENGTH_SHORT).show();
+                                        finish();
+                                    } else {
+                                        Toast.makeText(getSubActivity(), "删除失败：",
+                                                Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                        }
+
                     }
                 }).show();
 

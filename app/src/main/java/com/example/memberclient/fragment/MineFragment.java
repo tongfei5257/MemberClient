@@ -99,8 +99,8 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
         cb_use_lc.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                SPUtils.saveBoolean(getContext(), "user_lc", isChecked);
-                MyApp.USE_LC = isChecked;
+//                SPUtils.saveBoolean(getContext(), "user_lc", isChecked);
+//                MyApp.USE_LC = isChecked;
             }
         });
         view.findViewById(R.id.ll_me_about).setOnClickListener(this);
@@ -110,7 +110,7 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
 //        User currentUser = BmobUser.getCurrentUser(User.class);
 //        mUsername.setText(currentUser.getName() + "  " + currentUser.getUsername());
         if (MyApp.USE_LC) {
-            mUsername.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+            mUsername.setText("当前操作人:" + LCUser.getCurrentUser().getString("name"));
         } else {
             mUsername.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
         }

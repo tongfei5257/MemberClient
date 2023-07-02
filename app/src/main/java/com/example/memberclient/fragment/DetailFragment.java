@@ -37,6 +37,7 @@ import com.example.memberclient.model.ConsumeRecordLC;
 import com.example.memberclient.model.Project;
 import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.Source;
+import com.example.memberclient.model.User2LC;
 import com.example.memberclient.model.UserLC;
 import com.example.memberclient.ui.ConsumeProjectActivity;
 import com.example.memberclient.ui.MemberActivity;
@@ -105,6 +106,7 @@ public class DetailFragment extends BaseFragment {
 
     private MyAdapter myAdapter;
     private List<User2> datas = new ArrayList<>();
+    private List<UserLC> datasLC = new ArrayList<>();
     private BmobQuery<User2> bmobQuery;
     private static final int MSG_TRANS_USER = 1;
     private static final int MSG_TRANS_CP = 2;
@@ -124,7 +126,7 @@ public class DetailFragment extends BaseFragment {
                     transCR();
                     break;
                 case MSG_TRANS_END:
-                    ToastUtil.show(getContext(),"转换完成",Toast.LENGTH_LONG);
+                    ToastUtil.show(getContext(), "转换完成", Toast.LENGTH_LONG);
                     break;
             }
         }
@@ -146,7 +148,10 @@ public class DetailFragment extends BaseFragment {
                     @Override
                     public void run() {
                         List<LCObject> projectLCList = new ArrayList<>();
-                        Utils.queryLCUser(1000, 0, projectLCList);
+                        LCQuery<LCObject> lcObjectLCQuery = new LCQuery<>("UserLC")
+//                                .whereEqualTo("delete", false)
+                                .orderByDescending("createdAt");
+                        Utils.queryLCUser(lcObjectLCQuery,1000, 0, projectLCList);
                         Log.e("tf_test", "UserLC  start...=" + projectLCList.size());
                         // comments 包含与 post 相关联的评论
                         List<UserLC> userLCS = new ArrayList<>();
@@ -218,7 +223,10 @@ public class DetailFragment extends BaseFragment {
 //                            }
 
                             List<LCObject> CpLCs = new ArrayList<>();
-                            Utils.queryLCConsumeProject(1000, 0, CpLCs);
+
+                            Utils.queryLCConsumeProject(new LCQuery<>("ConsumeProjectLC")
+//                                    .whereEqualTo("delete", false)
+                                    .orderByAscending("createdAt"),1000, 0, CpLCs);
 
                             if (CpLCs.isEmpty()) {
                                 for (ConsumeProject user2 : list) {
@@ -243,7 +251,9 @@ public class DetailFragment extends BaseFragment {
                             }
                             Log.e("tf_test", "ConsumeProjectLC cpLcsResult=" + cpLcsResult.size());
                             List<LCObject> UserLCs = new ArrayList<>();
-                            Utils.queryLCUser(1000, 0, UserLCs);
+                            Utils.queryLCUser(new LCQuery<>("UserLC")
+//                                .whereEqualTo("delete", false)
+                                    .orderByDescending("createdAt"),1000, 0, UserLCs);
                             List<LCObject> ProjectLCs = new LCQuery<>("ProjectLC").whereEqualTo("delete", false)
                                     .orderByAscending("createdAt").find();
                             int count = 0;
@@ -256,7 +266,7 @@ public class DetailFragment extends BaseFragment {
                                         isFind = true;
 //                                        consumeProjectLC.user.setObjectId(lcObject.getObjectId());
 //                                        consumeProjectLC.saveV2();
-                                        LCObject user = LCObject.createWithoutData("User2LC", lcObject.getObjectId());
+                                        LCObject user = LCObject.createWithoutData("UserLC", lcObject.getObjectId());
                                         consumeProjectLC.put("user", user);
                                     }
                                 }
@@ -319,7 +329,9 @@ public class DetailFragment extends BaseFragment {
 //                            }
 
                             List<LCObject> CpLCs = new ArrayList<>();
-                            Utils.queryLCConsumeRecord(1000, 0, CpLCs);
+                            Utils.queryLCConsumeRecord(new LCQuery<>("ConsumeRecordLC")
+//                    .whereEqualTo("delete", false)
+                                    .orderByAscending("createdAt"),1000, 0, CpLCs);
 
                             if (CpLCs.isEmpty()) {
                                 for (ConsumeRecord user2 : list) {
@@ -344,7 +356,9 @@ public class DetailFragment extends BaseFragment {
                             }
                             Log.e("tf_test", "ConsumeRecordLC cpLcsResult=" + cpLcsResult.size());
                             List<LCObject> CpLCss = new ArrayList<>();
-                            Utils.queryLCConsumeProject(1000, 0, CpLCss);
+                            Utils.queryLCConsumeProject(new LCQuery<>("ConsumeProjectLC")
+//                                    .whereEqualTo("delete", false)
+                                    .orderByAscending("createdAt"),1000, 0, CpLCss);
                             int count = 0;
                             Iterator<ConsumeRecordLC> iterator = cpLcsResult.iterator();
                             boolean isFind = false;
@@ -442,13 +456,17 @@ public class DetailFragment extends BaseFragment {
         Button btn_transform = root.findViewById(R.id.btn_transform);
         MyApp myApp = (MyApp) getContext().getApplicationContext();
         if (MyApp.USE_LC) {
-            user.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+            user.setText("当前操作人:" + LCUser.getCurrentUser().getString("name"));
         } else {
             user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
         }
         myAdapter = new MyAdapter(this.getActivity());
         recyclerView.setLayoutManager(new LinearLayoutManager(mContext, LinearLayoutManager.VERTICAL, false));
-        myAdapter.setData(new ArrayList<User2>());
+        if (MyApp.USE_LC) {
+            myAdapter.setDataLC(new ArrayList<UserLC>());
+        } else {
+            myAdapter.setData(new ArrayList<User2>());
+        }
         recyclerView.setAdapter(myAdapter);
         mSearch.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -457,7 +475,7 @@ public class DetailFragment extends BaseFragment {
                 search(s, false);
             }
         });
-//        search("", true);
+        search("", true);
         btn_transform.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -862,18 +880,27 @@ public class DetailFragment extends BaseFragment {
             }
         });
         if (MyApp.USE_LC) {
-            final LCQuery<ProjectLC> priorityQuery = new LCQuery<>("ProjectLC");
+            final LCQuery<LCObject> priorityQuery = new LCQuery<>("ProjectLC");
             priorityQuery.whereEqualTo("delete", false)
                     .orderByAscending("createdAt")
-                    .findInBackground().subscribe(new Observer<List<ProjectLC>>() {
+                    .findInBackground().subscribe((Observer<? super List<LCObject>>) new Observer<List<LCObject>>() {
                         public void onSubscribe(Disposable disposable) {
                         }
 
-                        public void onNext(List<ProjectLC> projectLCList) {
-                            // comments 包含与 post 相关联的评论
+                        public void onNext(List<LCObject> projectLCList) {
+
+                            if (projectLCList == null || projectLCList.isEmpty()) {
+                                return;
+                            }
+
+                            for (LCObject lcObject : projectLCList) {
+                                MyApp.projectBeansLC.add(ProjectLC.toBean(lcObject));
+                            }
                         }
 
                         public void onError(Throwable throwable) {
+
+
                         }
 
                         public void onComplete() {
@@ -918,21 +945,52 @@ public class DetailFragment extends BaseFragment {
 
     private List<ConsumeProject> consumeProjects;
 
+    @SuppressLint("NotifyDataSetChanged")
     private void search(final String source, boolean req) {
 //        if (true) {
 //            return;
 //        }
+
         if (req) {
+            ProgressUtils.show(getActivity());
             if (MyApp.USE_LC) {
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
                         List<UserLC> userLCS = Utils.queryLCUser();
+                        datasLC.clear();
+                        datasLC = userLCS;
 
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @RequiresApi(api = Build.VERSION_CODES.N)
+                            @Override
+                            public void run() {
+                                ProgressUtils.dismiss();
+                                List<UserLC> temp = new ArrayList<>();
+                                userLCS.sort(new Comparator<UserLC>() {
+                                    @Override
+                                    public int compare(UserLC o1, UserLC o2) {
+                                        return o2.getNewNumber() - o1.getNewNumber();
+                                    }
+                                });
+                                size.setText("会员总数:" + userLCS.size());
+                                for (UserLC user : userLCS) {
+                                    if (TextUtils.isEmpty(source)) {
+                                        temp.add(user);
+                                        continue;
+                                    }
+                                    if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
+                                        temp.add(user);
+                                    }
+                                }
+                                myAdapter.setDataLC(temp);
+                                myAdapter.notifyDataSetChanged();
+                            }
+                        });
                     }
                 }).start();
             } else {
-                ProgressUtils.show(getActivity());
+
 //            query.order("-score,createdAt");
                 bmobQuery = new BmobQuery<>();
                 bmobQuery.addWhereEqualTo("type", "2")
@@ -989,17 +1047,31 @@ public class DetailFragment extends BaseFragment {
 
 
         } else {
-            List<User2> temp = new ArrayList<>();
-            for (User2 user : datas) {
-                if (TextUtils.isEmpty(source)) {
-                    temp.add(user);
-                    continue;
+            if (MyApp.USE_LC){
+                List<UserLC> temp = new ArrayList<>();
+                for (UserLC user : datasLC) {
+                    if (TextUtils.isEmpty(source)) {
+                        temp.add(user);
+                        continue;
+                    }
+                    if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
+                        temp.add(user);
+                    }
                 }
-                if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
-                    temp.add(user);
+                myAdapter.setDataLC(temp);
+            }else {
+                List<User2> temp = new ArrayList<>();
+                for (User2 user : datas) {
+                    if (TextUtils.isEmpty(source)) {
+                        temp.add(user);
+                        continue;
+                    }
+                    if ((user.getName().contains(source) || user.getUsername().contains(source)) || user.getNumber().contains(source)) {
+                        temp.add(user);
+                    }
                 }
+                myAdapter.setData(temp);
             }
-            myAdapter.setData(temp);
             myAdapter.notifyDataSetChanged();
         }
 
@@ -1014,10 +1086,15 @@ public class DetailFragment extends BaseFragment {
     private class MyAdapter extends RecyclerView.Adapter<ViewHolder> {
 
         private List<User2> list;
+        private List<UserLC> listLC;
         Context context;
 
         public void setData(List<User2> list) {
             this.list = list;
+        }
+
+        public void setDataLC(List<UserLC> list) {
+            this.listLC = list;
         }
 
         public MyAdapter(Context context) {
@@ -1032,25 +1109,38 @@ public class DetailFragment extends BaseFragment {
 
         @Override
         public void onBindViewHolder(final ViewHolder holder, int position) {
-            final User2 bean = list.get(position);
-            holder.bindView(context, bean);
-
-            holder.card_view.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(getActivity(), MemberDetailActivity.class);
-                    intent.putExtra("action", "edit");
-                    intent.putExtra("bean", bean);
-                    startActivity(intent);
-                }
-            });
+            if (!MyApp.USE_LC) {
+                final User2 bean = list.get(position);
+                holder.bindView(context, bean);
+                holder.card_view.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent intent = new Intent(getActivity(), MemberDetailActivity.class);
+                        intent.putExtra("action", "edit");
+                        intent.putExtra("bean", bean);
+                        startActivity(intent);
+                    }
+                });
+            } else {
+                final UserLC bean = listLC.get(position);
+                holder.bindView(context, bean);
+                holder.card_view.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent intent = new Intent(getActivity(), MemberDetailActivity.class);
+                        intent.putExtra("action", "edit");
+                        intent.putExtra("bean", bean);
+                        startActivity(intent);
+                    }
+                });
+            }
 
 
         }
 
         @Override
         public int getItemCount() {
-            return list.size();
+            return list == null?listLC.size():list.size();
         }
     }
 
@@ -1084,6 +1174,19 @@ public class DetailFragment extends BaseFragment {
         }
 
         public void bindView(Context context, final User2 bean) {
+            name.setText(bean.getName());
+            phone.setText(bean.getUsername());
+            number.setText(bean.getNumber());
+            if (!TextUtils.isEmpty((bean.getRemark()))) {
+                remark.setText("备注:" + bean.getRemark());
+                remark.setVisibility(View.VISIBLE);
+            } else {
+                remark.setVisibility(View.GONE);
+            }
+            time.setText(bean.getDate());
+        }
+
+        public void bindView(Context context, final UserLC bean) {
             name.setText(bean.getName());
             phone.setText(bean.getUsername());
             number.setText(bean.getNumber());

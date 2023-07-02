@@ -284,8 +284,8 @@ public class ProjectDetailActivity extends BaseActivity {
 
                 } else {
                     if (MyApp.USE_LC) {
-                        LCObject todo = LCObject.createWithoutData("ProjectLC", mProjectLC.getObjectId());
-                        ProjectLC.createWithoutData(todo, mProjectLC);
+//                        LCObject todo = LCObject.createWithoutData("ProjectLC", mProjectLC.getObjectId());
+//                        ProjectLC.createWithoutData(todo, mProjectLC);
                         mProjectLC.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
                             public void onSubscribe(Disposable disposable) {
                             }

@@ -71,8 +71,8 @@ public class LoginActivity extends BaseActivity {
         cb_use_lc.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                SPUtils.saveBoolean(getApplicationContext(),"user_lc",isChecked);
-                MyApp.USE_LC=isChecked;
+//                SPUtils.saveBoolean(getApplicationContext(),"user_lc",isChecked);
+//                MyApp.USE_LC=isChecked;
             }
         });
 //        1111111

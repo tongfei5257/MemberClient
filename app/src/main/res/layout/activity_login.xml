@@ -66,10 +66,11 @@
         android:layout_below="@id/ll"
         android:layout_marginTop="60dp"
         android:text="登录" />
+
     <CheckBox
         android:id="@+id/cb_use_lc"
         android:layout_width="match_parent"
+        android:visibility="gone"
         android:layout_height="wrap_content"
-        android:text="是否使用leancloud"
-        />
+        android:text="是否使用leancloud" />
 </RelativeLayout>

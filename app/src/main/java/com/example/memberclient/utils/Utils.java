@@ -325,29 +325,53 @@ public class Utils {
     }
 
     public static List<LCObject> queryLCUser(int limit, int skip, List<LCObject> result) {
-        List<LCObject> UserLCs = new LCQuery<>("UserLC")
-//                .whereEqualTo("delete", false)
-                .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+        LCQuery<LCObject> lcObjectLCQuery = new LCQuery<>("UserLC")
+                .whereEqualTo("delete", false)
+                .orderByDescending("createdAt");
+        return queryLCUser(lcObjectLCQuery,limit,skip,result);
+    }
+    public static List<LCObject> queryLCUser(LCQuery<LCObject> lcQuery,int limit, int skip, List<LCObject> result) {
+        List<LCObject> UserLCs = lcQuery.setLimit(limit).setSkip(skip).find();
         Log.e("tf_test","UserLCs="+UserLCs.size()+",limit="+limit+",skip="+skip);
         if (UserLCs.size() > 0) {
             result.addAll(UserLCs);
         }
         if (UserLCs.size() == limit) {
-            queryLCUser(limit, skip + limit, result);
+            queryLCUser(lcQuery,limit, skip + limit, result);
         }
+
         return result;
     }
     public static List<LCObject> queryLCConsumeProject(int limit, int skip, List<LCObject> result) {
+//        try {
+//            List<LCObject> UserLCs = new LCQuery<>("ConsumeProjectLC")
+////                    .whereEqualTo("delete", false)
+//                    .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+//            Log.e("tf_test","ConsumeProjectLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
+//            if (UserLCs.size() > 0) {
+//                result.addAll(UserLCs);
+//            }
+//            if (UserLCs.size() == limit) {
+//                queryLCConsumeProject(limit, skip + limit, result);
+//            }
+//        }catch (Exception e){
+//            Log.e("tf_test",Log.getStackTraceString(e));
+//        }
+//
+//        return result;
+        return queryLCConsumeProject(new LCQuery<>("ConsumeProjectLC")
+                .whereEqualTo("delete", false)
+                    .orderByAscending("createdAt"),limit,skip,result);
+    }
+    public static List<LCObject> queryLCConsumeProject(LCQuery<LCObject> lcQuery,int limit, int skip, List<LCObject> result) {
         try {
-            List<LCObject> UserLCs = new LCQuery<>("ConsumeProjectLC")
-//                    .whereEqualTo("delete", false)
-                    .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+            List<LCObject> UserLCs = lcQuery.setLimit(limit).setSkip(skip).find();
             Log.e("tf_test","ConsumeProjectLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
             if (UserLCs.size() > 0) {
                 result.addAll(UserLCs);
             }
             if (UserLCs.size() == limit) {
-                queryLCConsumeProject(limit, skip + limit, result);
+                queryLCConsumeProject(lcQuery,limit, skip + limit, result);
             }
         }catch (Exception e){
             Log.e("tf_test",Log.getStackTraceString(e));
@@ -358,8 +382,24 @@ public class Utils {
     public static List<LCObject> queryLCConsumeRecord(int limit, int skip, List<LCObject> result) {
         try {
             List<LCObject> UserLCs = new LCQuery<>("ConsumeRecordLC")
-//                    .whereEqualTo("delete", false)
+                    .whereEqualTo("delete", false)
                     .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
+            Log.e("tf_test","ConsumeRecordLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
+            if (UserLCs.size() > 0) {
+                result.addAll(UserLCs);
+            }
+            if (UserLCs.size() == limit) {
+                queryLCConsumeRecord(limit, skip + limit, result);
+            }
+        }catch (Exception e){
+            Log.e("tf_test","ConsumeRecordLC："+Log.getStackTraceString(e));
+        }
+
+        return result;
+    }
+    public static List<LCObject> queryLCConsumeRecord(LCQuery<LCObject> lcQuery,int limit, int skip, List<LCObject> result) {
+        try {
+            List<LCObject> UserLCs = lcQuery.setLimit(limit).setSkip(skip).find();
             Log.e("tf_test","ConsumeRecordLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
             if (UserLCs.size() > 0) {
                 result.addAll(UserLCs);

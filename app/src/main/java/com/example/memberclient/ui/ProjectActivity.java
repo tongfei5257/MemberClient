@@ -87,7 +87,7 @@ public class ProjectActivity extends BaseActivity {
     private void initData() {
 //        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
         if (MyApp.USE_LC) {
-            user.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+            user.setText("当前操作人:" +  LCUser.getCurrentUser().getString("name"));
             myAdapterLC = new MyAdapterLC(this);
             myAdapterLC.setData(new ArrayList<ProjectLC>());
             recyclerView.setAdapter(myAdapterLC);

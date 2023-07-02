@@ -1,7 +1,6 @@
 package com.example.memberclient.ui;
 
 
-
 import static com.example.memberclient.utils.DateUtils.FORMAT_D;
 import static com.example.memberclient.utils.DateUtils.FORMAT_M;
 import static com.example.memberclient.utils.DateUtils.FORMAT_Y;
@@ -14,6 +13,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.DatePicker;
@@ -22,10 +22,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.memberclient.R;
+import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.ConsumeProject;
+import com.example.memberclient.model.ConsumeProjectLC;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.User;
 import com.example.memberclient.model.User2;
+import com.example.memberclient.model.UserLC;
 import com.example.memberclient.utils.CommonUtils;
 import com.example.memberclient.utils.DateUtils;
 import com.example.memberclient.utils.ProgressUtils;
@@ -43,6 +47,11 @@ import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
 import cn.bmob.v3.listener.SaveListener;
 import cn.bmob.v3.listener.UpdateListener;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
+import cn.leancloud.LCUser;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 
 public class MemberDetailActivity extends BaseActivity {
@@ -70,6 +79,7 @@ public class MemberDetailActivity extends BaseActivity {
     TextView mTimeTv;
 
     private User2 mUser;
+    private UserLC mUserLc;
     //选择时间
     protected int mYear;
     protected int mMonth;
@@ -78,6 +88,7 @@ public class MemberDetailActivity extends BaseActivity {
 
     private List<String> projects = new ArrayList<>();
     private List<Project> projectBeans = new ArrayList<>();
+    private List<ProjectLC> projectBeansLC = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,7 +143,7 @@ public class MemberDetailActivity extends BaseActivity {
 
                 }
                 mTimeTv.setText(days);
-                mMonth+=1;
+                mMonth += 1;
             }
         }, mYear, mMonth - 1, mDay).show();
     }
@@ -150,18 +161,34 @@ public class MemberDetailActivity extends BaseActivity {
         mTimeTv.setText(days);
         final String action = getIntent().getStringExtra("action");
         if (action.equals("edit")) {
-            mUser = (User2) getIntent().getSerializableExtra("bean");
-            tv_name.setText(mUser.getName());
-            tv_phone.setText(mUser.getUsername());
-            number.setText(mUser.getNumber());
-            remark.setText(mUser.getRemark());
-            btn_delete.setVisibility(View.VISIBLE);
-            String userDate = mUser.getDate();
-            if (!TextUtils.isEmpty(userDate)) {
-                Date curDate = DateUtils.getCurDate(userDate, format);
-                days = DateUtils.date2Str(curDate, format);
-                mTimeTv.setText(userDate);
+            if (MyApp.USE_LC) {
+                mUserLc = (UserLC) getIntent().getParcelableExtra("bean");
+                tv_name.setText(mUserLc.getName());
+                tv_phone.setText(mUserLc.getUsername());
+                number.setText(mUserLc.getNumber());
+                remark.setText(mUserLc.getRemark());
+                btn_delete.setVisibility(View.VISIBLE);
+                String userDate = mUserLc.getDate();
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
+            } else {
+                mUser = (User2) getIntent().getSerializableExtra("bean");
+                tv_name.setText(mUser.getName());
+                tv_phone.setText(mUser.getUsername());
+                number.setText(mUser.getNumber());
+                remark.setText(mUser.getRemark());
+                btn_delete.setVisibility(View.VISIBLE);
+                String userDate = mUser.getDate();
+                if (!TextUtils.isEmpty(userDate)) {
+                    Date curDate = DateUtils.getCurDate(userDate, format);
+                    days = DateUtils.date2Str(curDate, format);
+                    mTimeTv.setText(userDate);
+                }
             }
+
         } else if (action.equals("add")) {
             btn_delete.setVisibility(View.GONE);
             btn_consume_record.setVisibility(View.GONE);
@@ -187,86 +214,225 @@ public class MemberDetailActivity extends BaseActivity {
 
 
                 if (action.equals("add")) {
-                    final User2 user = new User2();
-                    user.setName(name);
-                    user.setUsername(phone);
-                    user.setNumber(numberStr);
-                    user.setRemark(remarkStr);
-                    user.setPassword(phone);
-                    user.setPass(phone);
-                    user.setType("2");
-                    user.setDate(days);
-                    user.setOperator(BmobUser.getCurrentUser(User.class));
-                    new AlertDialog.Builder(getSubActivity())
-                            .setTitle("提示")
-                            .setMessage("确定要增加 " + user.getUsername() + " 用户吗")
-                            .setNegativeButton("取消", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
+                    if (MyApp.USE_LC) {
+                        final UserLC user = new UserLC();
+                        user.setName(name);
+                        user.setUsername(phone);
+                        user.setNumber(numberStr);
+                        user.setRemark(remarkStr);
+                        user.setPassword(phone);
+                        user.setPass(phone);
+                        user.setType("2");
+                        user.setDate(days);
+                        user.setOperator(LCUser.getCurrentUser());
+                        new AlertDialog.Builder(getSubActivity())
+                                .setTitle("提示")
+                                .setMessage("确定要增加 " + user.getUsername() + " 用户吗")
+                                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
 
-                                }
-                            }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            ProgressUtils.show(getSubActivity());
-
-                            user.save(new SaveListener<String>() {
-                                @Override
-                                public void done(String objectId, BmobException e) {
-                                    ProgressUtils.dismiss(getSubActivity());
-
-
-                                    if (e == null) {
-                                        Toast.makeText(getSubActivity(), "保存成功：" + user.getUsername(),
-                                                Toast.LENGTH_SHORT).show();
-                                        finish();
-                                    } else {
-                                        Toast.makeText(getSubActivity(), "保存失败：" + user.getUsername(), Toast.LENGTH_SHORT).show();
                                     }
-                                }
-                            });
+                                }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        ProgressUtils.show(getSubActivity());
+
+
+                                        user.saveV3().saveInBackground().subscribe(new Observer<LCObject>() {
+                                            public void onSubscribe(Disposable disposable) {
+                                            }
+
+                                            public void onNext(LCObject todo) {
+                                                // 成功保存之后，执行其他逻辑
+                                                Toast.makeText(getSubActivity(), "保存成功：" + user.getUsername(),
+                                                        Toast.LENGTH_SHORT).show();
+                                                ProgressUtils.dismiss(getSubActivity());
+                                                finish();
+                                            }
+
+                                            public void onError(Throwable throwable) {
+                                                ProgressUtils.dismiss(getSubActivity());
+                                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                                            }
+
+                                            public void onComplete() {
+                                                ProgressUtils.dismiss(getSubActivity());
+                                            }
+                                        });
+                                    }
+                                }).show();
+                    } else {
+//                        if (MyApp.USE_LC) {
+//                            final UserLC user = mUserLc;
+//                            user.setName(name);
+//                            user.setUsername(phone);
+//                            user.setNumber(numberStr);
+//                            user.setRemark(remarkStr);
+//                            user.setPassword(phone);
+//                            user.setPass(phone);
+//                            user.setType("2");
+//                            user.setDate(days);
+//                            user.setOperator(LCUser.getCurrentUser());
+//                            new AlertDialog.Builder(getSubActivity())
+//                                    .setTitle("提示")
+//                                    .setMessage("确定要增加 " + user.getUsername() + " 用户吗")
+//                                    .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+//                                        @Override
+//                                        public void onClick(DialogInterface dialog, int which) {
+//
+//                                        }
+//                                    }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+//                                        @Override
+//                                        public void onClick(DialogInterface dialog, int which) {
+//                                            ProgressUtils.show(getSubActivity());
+//                                            user.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+//                                                public void onSubscribe(Disposable disposable) {
+//                                                }
+//
+//                                                public void onNext(LCObject todo) {
+//                                                    // 成功保存之后，执行其他逻辑
+//                                                    Toast.makeText(getSubActivity(), "保存成功：" + user.getUsername(),
+//                                                            Toast.LENGTH_SHORT).show();
+//                                                    finish();
+//                                                }
+//
+//                                                public void onError(Throwable throwable) {
+//                                                    Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+//                                                }
+//
+//                                                public void onComplete() {
+//                                                    ProgressUtils.dismiss(getSubActivity());
+//                                                }
+//                                            });
+//                                        }
+//                                    }).show();
+//
+//                        } else {
+                            final User2 user = new User2();
+                            user.setName(name);
+                            user.setUsername(phone);
+                            user.setNumber(numberStr);
+                            user.setRemark(remarkStr);
+                            user.setPassword(phone);
+                            user.setPass(phone);
+                            user.setType("2");
+                            user.setDate(days);
+                            user.setOperator(BmobUser.getCurrentUser(User.class));
+                            new AlertDialog.Builder(getSubActivity())
+                                    .setTitle("提示")
+                                    .setMessage("确定要增加 " + user.getUsername() + " 用户吗")
+                                    .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+
+                                        }
+                                    }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            ProgressUtils.show(getSubActivity());
+
+                                            user.save(new SaveListener<String>() {
+                                                @Override
+                                                public void done(String objectId, BmobException e) {
+                                                    ProgressUtils.dismiss(getSubActivity());
+
+
+                                                    if (e == null) {
+                                                        Toast.makeText(getSubActivity(), "保存成功：" + user.getUsername(),
+                                                                Toast.LENGTH_SHORT).show();
+                                                        finish();
+                                                    } else {
+                                                        Toast.makeText(getSubActivity(), "保存失败：" + user.getUsername(), Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }).show();
                         }
-                    }).show();
 
-
+//                    }
 
 
                 } else {
-                    mUser.setName(name);
-                    mUser.setUsername(phone);
-                    mUser.setNumber(numberStr);
-                    mUser.setRemark(remarkStr);
-                    mUser.setType("2");
-                    mUser.setDate(days);
-                    mUser.setOperator(BmobUser.getCurrentUser(User.class));
-                    new AlertDialog.Builder(getSubActivity())
-                            .setTitle("提示")
-                            .setMessage("确定要修改 " + mUser.getName() + " 用户吗")
-                            .setNegativeButton("取消", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
+                    if (MyApp.USE_LC) {
+                        mUserLc.setName(name);
+                        mUserLc.setUsername(phone);
+                        mUserLc.setNumber(numberStr);
+                        mUserLc.setRemark(remarkStr);
+                        mUserLc.setType("2");
+                        mUserLc.setDate(days);
+                        new AlertDialog.Builder(getSubActivity())
+                                .setTitle("提示")
+                                .setMessage("确定要修改 " + mUserLc.getName() + " 用户吗")
+                                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
 
-                                }
-                            }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            ProgressUtils.show(getSubActivity());
-                            mUser.update(new UpdateListener() {
-                                @Override
-                                public void done(BmobException e) {
-                                    ProgressUtils.dismiss(getSubActivity());
-                                    if (e == null) {
-                                        Toast.makeText(getSubActivity(), "保存成功：" + mUser.getUsername(),
-                                                Toast.LENGTH_SHORT).show();
-                                        finish();
-                                    } else {
-                                        Toast.makeText(getSubActivity(), "保存失败：" + mUser.getUsername(),
-                                                Toast.LENGTH_SHORT).show();
                                     }
-                                }
-                            });
-                        }
-                    }).show();
+                                }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        ProgressUtils.show(getSubActivity());
+                                        mUserLc.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                                            public void onSubscribe(Disposable disposable) {
+                                            }
+
+                                            public void onNext(LCObject todo) {
+                                                // 成功保存之后，执行其他逻辑
+                                                Toast.makeText(getSubActivity(), "保存成功：" + mUserLc.getUsername(),
+                                                        Toast.LENGTH_SHORT).show();
+                                                finish();
+                                            }
+
+                                            public void onError(Throwable throwable) {
+                                                Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                                            }
+
+                                            public void onComplete() {
+                                                ProgressUtils.dismiss(getSubActivity());
+                                            }
+                                        });
+                                    }
+                                }).show();
+                    }else {
+                        mUser.setName(name);
+                        mUser.setUsername(phone);
+                        mUser.setNumber(numberStr);
+                        mUser.setRemark(remarkStr);
+                        mUser.setType("2");
+                        mUser.setDate(days);
+                        mUser.setOperator(BmobUser.getCurrentUser(User.class));
+                        new AlertDialog.Builder(getSubActivity())
+                                .setTitle("提示")
+                                .setMessage("确定要修改 " + mUser.getName() + " 用户吗")
+                                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+
+                                    }
+                                }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        ProgressUtils.show(getSubActivity());
+                                        mUser.update(new UpdateListener() {
+                                            @Override
+                                            public void done(BmobException e) {
+                                                ProgressUtils.dismiss(getSubActivity());
+                                                if (e == null) {
+                                                    Toast.makeText(getSubActivity(), "保存成功：" + mUser.getUsername(),
+                                                            Toast.LENGTH_SHORT).show();
+                                                    finish();
+                                                } else {
+                                                    Toast.makeText(getSubActivity(), "保存失败：" + mUser.getUsername(),
+                                                            Toast.LENGTH_SHORT).show();
+                                                }
+                                            }
+                                        });
+                                    }
+                                }).show();
+                    }
+
 
                 }
             }
@@ -276,35 +442,58 @@ public class MemberDetailActivity extends BaseActivity {
             public void onClick(View v) {
                 new AlertDialog.Builder(getSubActivity())
                         .setTitle("提示")
-                        .setMessage("确定要删除 " + mUser.getName() + " 用户吗")
+                        .setMessage("确定要删除 " +(MyApp.USE_LC? mUserLc.getName():mUser.getName()) + " 用户吗")
                         .setNegativeButton("取消", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
 
                             }
                         }).setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        ProgressUtils.show(getSubActivity());
-
-                        mUser.setDelete(true);
-                        mUser.update(new UpdateListener() {
                             @Override
-                            public void done(BmobException e) {
-                                ProgressUtils.dismiss(getSubActivity());
+                            public void onClick(DialogInterface dialog, int which) {
+                                ProgressUtils.show(getSubActivity());
+                                if (MyApp.USE_LC){
+                                    mUserLc.setDelete(true);
+                                    mUserLc.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                                        public void onSubscribe(Disposable disposable) {
+                                        }
 
-                                if (e == null) {
-                                    Toast.makeText(getSubActivity(), "删除成功：" + mUser.getUsername(),
-                                            Toast.LENGTH_SHORT).show();
-                                    finish();
-                                } else {
-                                    Toast.makeText(getSubActivity(), "删除失败：" + mUser.getUsername(),
-                                            Toast.LENGTH_SHORT).show();
+                                        public void onNext(LCObject todo) {
+                                            // 成功保存之后，执行其他逻辑
+                                            Toast.makeText(getSubActivity(), "保存成功：" + mUserLc.getUsername(),
+                                                    Toast.LENGTH_SHORT).show();
+                                            finish();
+                                        }
+
+                                        public void onError(Throwable throwable) {
+                                            Toast.makeText(getSubActivity(), "保存失败：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                                        }
+
+                                        public void onComplete() {
+                                            ProgressUtils.dismiss(getSubActivity());
+                                        }
+                                    });
+                                }else {
+                                    mUser.setDelete(true);
+                                    mUser.update(new UpdateListener() {
+                                        @Override
+                                        public void done(BmobException e) {
+                                            ProgressUtils.dismiss(getSubActivity());
+
+                                            if (e == null) {
+                                                Toast.makeText(getSubActivity(), "删除成功：" + mUser.getUsername(),
+                                                        Toast.LENGTH_SHORT).show();
+                                                finish();
+                                            } else {
+                                                Toast.makeText(getSubActivity(), "删除失败：" + mUser.getUsername(),
+                                                        Toast.LENGTH_SHORT).show();
+                                            }
+                                        }
+                                    });
                                 }
+
                             }
-                        });
-                    }
-                }).show();
+                        }).show();
 
             }
         });
@@ -330,42 +519,90 @@ public class MemberDetailActivity extends BaseActivity {
                 showSingleChoiceDialog();
             }
         });
-        BmobQuery<Project> query = new BmobQuery<>();
-        if (myApp.projectBeans.isEmpty()) {
-            query.addWhereEqualTo("delete", false)
-                    .order("-createdAt")
-                    .findObjects(new FindListener<Project>() {
-                        @Override
-                        public void done(List<Project> list, BmobException e) {
-                            ProgressUtils.dismiss(getSubActivity());
+        if (MyApp.USE_LC){
 
-                            if (e == null) {
-                                myApp.projectBeans = list;
-                                projects.clear();
-                                for (Project project : list) {
+            if (myApp.projectBeansLC.isEmpty()) {
+                final LCQuery<LCObject> priorityQuery = new LCQuery<>("ProjectLC");
+                priorityQuery.whereEqualTo("delete", false)
+                        .orderByAscending("createdAt")
+                        .findInBackground().subscribe((Observer<? super List<LCObject>>) new Observer<List<LCObject>>() {
+                            public void onSubscribe(Disposable disposable) {
+                            }
+
+                            public void onNext(List<LCObject> projectLCList) {
+
+                                if (projectLCList == null || projectLCList.isEmpty()) {
+                                    return;
+                                }
+
+                                for (LCObject lcObject : projectLCList) {
+                                    MyApp.projectBeansLC.add(ProjectLC.toBean(lcObject));
+                                }
+                                for (ProjectLC project : MyApp.projectBeansLC) {
                                     projects.add("(" + project.getTypeString() + ")" + project.getName() + ",金额=" + project.getMoney() + ",类型=" + project.getConsumeTypeString());
                                 }
-                                projectBeans = list;
-
-                            } else {
-                                Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+                                projectBeansLC = MyApp.projectBeansLC;
                             }
-                        }
 
-                    });
-        } else {
-            for (Project project : myApp.projectBeans) {
-                projects.add("(" + project.getTypeString() + ")" + project.getName() + ",金额=" + project.getMoney() + ",类型=" + project.getConsumeTypeString());
+                            public void onError(Throwable throwable) {
+
+
+                            }
+
+                            public void onComplete() {
+                            }
+                        });
+            } else {
+                for (ProjectLC project : myApp.projectBeansLC) {
+                    projects.add("(" + project.getTypeString() + ")" + project.getName() + ",金额=" + project.getMoney() + ",类型=" + project.getConsumeTypeString());
+                }
+                projectBeansLC = myApp.projectBeansLC;
             }
-            projectBeans= myApp.projectBeans;
+
+        }else {
+            BmobQuery<Project> query = new BmobQuery<>();
+            if (myApp.projectBeans.isEmpty()) {
+                query.addWhereEqualTo("delete", false)
+                        .order("-createdAt")
+                        .findObjects(new FindListener<Project>() {
+                            @Override
+                            public void done(List<Project> list, BmobException e) {
+                                ProgressUtils.dismiss(getSubActivity());
+
+                                if (e == null) {
+                                    myApp.projectBeans = list;
+                                    projects.clear();
+                                    for (Project project : list) {
+                                        projects.add("(" + project.getTypeString() + ")" + project.getName() + ",金额=" + project.getMoney() + ",类型=" + project.getConsumeTypeString());
+                                    }
+                                    projectBeans = list;
+
+                                } else {
+                                    Toast.makeText(getApplicationContext(), "搜索异常", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                        });
+            } else {
+                for (Project project : myApp.projectBeans) {
+                    projects.add("(" + project.getTypeString() + ")" + project.getName() + ",金额=" + project.getMoney() + ",类型=" + project.getConsumeTypeString());
+                }
+                projectBeans = myApp.projectBeans;
+            }
+
         }
+
 
 
         btn_consume_record.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(getSubActivity(), ConsumeProjectActivity.class);
-                intent.putExtra("user", mUser);
+                if (!MyApp.USE_LC){
+                    intent.putExtra("user", mUser);
+                }else {
+                    intent.putExtra("user", mUserLc);
+                }
                 startActivity(intent);
             }
         });
@@ -391,23 +628,49 @@ public class MemberDetailActivity extends BaseActivity {
                 new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        ConsumeProject consumeProject = new ConsumeProject();
-                        consumeProject.setUser(mUser);
-                        consumeProject.setOperator(BmobUser.getCurrentUser(User.class));
-                        consumeProject.setParent(projectBeans.get(yourChoice));
-                        consumeProject.setDelete(false);
-                        consumeProject.save(new SaveListener<String>() {
-                            @Override
-                            public void done(String s, BmobException e) {
-                                if (e == null) {
-                                    ToastUtil.showShort(getSubActivity(), "添加成功");
+                        if (MyApp.USE_LC){
 
-                                } else {
-                                    ToastUtil.showShort(getSubActivity(), s);
-
+                            ConsumeProjectLC consumeProject = new ConsumeProjectLC();
+                            consumeProject.setUser(mUserLc);
+                            consumeProject.setOperator(BmobUser.getCurrentUser(User.class));
+                            consumeProject.setParent(projectBeansLC.get(yourChoice));
+                            consumeProject.setDelete(false);
+                            consumeProject.saveV2().saveInBackground().subscribe(new Observer<LCObject>() {
+                                public void onSubscribe(Disposable disposable) {
                                 }
-                            }
-                        });
+
+                                public void onNext(LCObject todo) {
+                                    ToastUtil.showShort(getSubActivity(), "添加成功");
+                                }
+
+                                public void onError(Throwable throwable) {
+
+                                    Toast.makeText(getSubActivity(), "添加成功：" + Log.getStackTraceString(throwable), Toast.LENGTH_SHORT).show();
+                                }
+
+                                public void onComplete() {
+                                }
+                            });
+                        }else {
+                            ConsumeProject consumeProject = new ConsumeProject();
+                            consumeProject.setUser(mUser);
+                            consumeProject.setOperator(BmobUser.getCurrentUser(User.class));
+                            consumeProject.setParent(projectBeans.get(yourChoice));
+                            consumeProject.setDelete(false);
+                            consumeProject.save(new SaveListener<String>() {
+                                @Override
+                                public void done(String s, BmobException e) {
+                                    if (e == null) {
+                                        ToastUtil.showShort(getSubActivity(), "添加成功");
+
+                                    } else {
+                                        ToastUtil.showShort(getSubActivity(), s);
+
+                                    }
+                                }
+                            });
+                        }
+
                     }
                 });
         singleChoiceDialog.setNegativeButton("取消", new DialogInterface.OnClickListener() {

@@ -10,6 +10,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -32,6 +34,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.memberclient.R;
 import com.example.memberclient.application.MyApp;
+import com.example.memberclient.model.ConsumeProjectLC;
+import com.example.memberclient.model.ConsumeRecordLC;
+import com.example.memberclient.model.ProjectLC;
+import com.example.memberclient.model.User2LC;
+import com.example.memberclient.model.UserLC;
 import com.example.memberclient.ui.ConsumeProjectActivity;
 import com.example.memberclient.model.ConsumeProject;
 import com.example.memberclient.model.ConsumeRecord;
@@ -45,6 +52,7 @@ import com.example.memberclient.utils.Utils;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -54,6 +62,8 @@ import cn.bmob.v3.BmobUser;
 import cn.bmob.v3.datatype.BmobDate;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
 import cn.leancloud.LCUser;
 
 public class ReportFragment extends BaseFragment {
@@ -113,7 +123,7 @@ public class ReportFragment extends BaseFragment {
         btn_update_time = root.findViewById(R.id.btn_update_time);
         btn_update_time2 = root.findViewById(R.id.btn_update_time2);
         record = root.findViewById(R.id.record);
-   ;
+        ;
 
 
         setTypeSpinner();
@@ -139,9 +149,9 @@ public class ReportFragment extends BaseFragment {
         });
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
 //        user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
-        if (MyApp.USE_LC){
-            user.setText("当前操作人:" +  LCUser.getCurrentUser().getUsername());
-        }else {
+        if (MyApp.USE_LC) {
+            user.setText("当前操作人:" + LCUser.getCurrentUser().getUsername());
+        } else {
             user.setText("当前操作人:" + BmobUser.getCurrentUser(User.class).getName());
         }
         myAdapter = new MyAdapter(this.getContext());
@@ -226,119 +236,150 @@ public class ReportFragment extends BaseFragment {
             end = sdf.parse(days2);
             long l = start.getTime() + 24 * 60 * 60 * 1000;
             end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-            BmobDate startDate = new BmobDate(start);
-            BmobDate endDate = new BmobDate(end);
+            if (MyApp.USE_LC) {
+                if (position == 0) {
+                    Date finalStart = start;
+                    Date finalEnd = end;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            //            消费项目
+                            LCQuery<LCObject> lcObjectLCQuery = new LCQuery<>("ConsumeProjectLC")
+                                    .whereEqualTo("delete", false)
+                                    .orderByDescending("createdAt")
+                                    .include("parent,user");
+//                                    .whereLessThan("createdAt", finalStart)
+//                                    .whereGreaterThan("createdAt", finalEnd)
+                            ;
+                            ArrayList<LCObject> result = new ArrayList<>();
+                            Utils.queryLCConsumeProject(lcObjectLCQuery, 1000, 0, result);
+                            ProgressUtils.dismiss(getActivity());
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    datas.clear();
+                                    for (LCObject lcObject:result) {
+                                        Date createdAt = lcObject.getCreatedAt();
+                                        if (createdAt.after(finalStart)&&createdAt.before(finalEnd)) {
+                                            datas.add(ConsumeProjectLC.toBean(lcObject));
+                                        }
+                                    }
+                                    record.setText("消费项目总计：" + datas.size() + "个");
+                                    myAdapter.setData(datas);
+                                    myAdapter.notifyDataSetChanged();
+                                }
+                            });
+
+                        }
+                    }).start();
+
+                } else if (position == 1) {
+                    Date finalStart1 = start;
+                    Date finalEnd1 = end;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            LCQuery<LCObject> lcObjectLCQuery = new LCQuery<>("ConsumeRecordLC")
+                                    .whereEqualTo("delete", false);
+                            lcObjectLCQuery.orderByDescending("createdAt")
+                                    .include("from,from.parent,,from.user");
+                            ArrayList<LCObject> result = new ArrayList<>();
+                            Utils.queryLCConsumeRecord(lcObjectLCQuery, 1000, 0, result);
+                            ProgressUtils.dismiss(getActivity());
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    List<ConsumeRecordLC> list = new ArrayList<>();
+
+                                    for (LCObject lcObject : result) {
+                                        Date createdAt = lcObject.getCreatedAt();
+                                        if (createdAt.after(finalStart1)&&createdAt.before(finalEnd1)) {
+                                            list.add(ConsumeRecordLC.toBean(lcObject));
+                                        }
+                                    }
+                                    int count = 0;
+                                    for (ConsumeRecordLC record : list) {
+                                        count += record.getCount();
+                                    }
+                                    record.setText("子消费项目总计：" + result.size() + "个,已核销" + count + "次");
+                                    datas.clear();
+                                    datas.addAll(list);
+
+                                    myAdapter.setData(datas);
+                                    myAdapter.notifyDataSetChanged();
+                                }
+                            });
+
+                        }
+                    }).start();
 
 
-            if (position == 0) {
+                }
+            } else {
+                BmobDate startDate = new BmobDate(start);
+                BmobDate endDate = new BmobDate(end);
+
+                if (position == 0) {
 //            消费项目
-                BmobQuery<ConsumeProject> query1 = new BmobQuery<>();
-                query1.addWhereEqualTo("delete", false)
-                        .order("-createdAt")
-                        .include("operator,parent,user")
-                        .setLimit(300)
-                        .addWhereLessThan("createdAt", endDate)
-                        .addWhereGreaterThan("createdAt", startDate);
+                    BmobQuery<ConsumeProject> query1 = new BmobQuery<>();
+                    query1.addWhereEqualTo("delete", false)
+                            .order("-createdAt")
+                            .include("operator,parent,user")
+                            .setLimit(300)
+                            .addWhereLessThan("createdAt", endDate)
+                            .addWhereGreaterThan("createdAt", startDate);
 
-                Utils.queryConsumeProject(query1, 150, 0, new FindListener<ConsumeProject>() {
-                    @Override
-                    public void done(List<ConsumeProject> list, BmobException e) {
-                        ProgressUtils.dismiss(getActivity());
-                        if (e == null) {
+                    Utils.queryConsumeProject(query1, 150, 0, new FindListener<ConsumeProject>() {
+                        @Override
+                        public void done(List<ConsumeProject> list, BmobException e) {
+                            ProgressUtils.dismiss(getActivity());
+                            if (e == null) {
 //                                    datas = new ArrayList<>(list);
-                            record.setText("消费项目总计：" + list.size() + "个");
-                            datas.clear();
-                            datas.addAll(list);
-                            myAdapter.setData(datas);
-                            myAdapter.notifyDataSetChanged();
-                        } else {
-                            Toast.makeText(getContext(), "搜索异常=" + Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-//                BmobQuery<ConsumeProject> query = new BmobQuery<>();
-//                query.addWhereEqualTo("delete", false)
-//                        .order("-createdAt")
-//                        .include("operator,parent,user")
-//                        .setLimit(300)
-//                        .addWhereLessThan("createdAt", endDate)
-//                        .addWhereGreaterThan("createdAt", startDate)
-//                        .findObjects(new FindListener<ConsumeProject>() {
-//                            @Override
-//                            public void done(List<ConsumeProject> list, BmobException e) {
-//                                ProgressUtils.dismiss(getActivity());
-//                                if (e == null) {
-////                                    datas = new ArrayList<>(list);
-//                                    record.setText("消费项目总计：" + list.size() + "个");
-//                                    datas.clear();
-//                                    datas.addAll(list);
-//                                    myAdapter.setData(datas);
-//                                    myAdapter.notifyDataSetChanged();
-//                                } else {
-//                                    Toast.makeText(getContext(), "搜索异常=" + Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
-//                                }
-//                            }
-//                        });
-            } else if (position == 1) {
-                BmobQuery<ConsumeRecord> query = new BmobQuery<>();
-                query.addWhereEqualTo("delete", false)
-                        .order("-createdAt")
-                        .include("from,operator,from.user,from.parent")
-                        .addWhereLessThan("createdAt", endDate)
-                        .addWhereGreaterThan("createdAt", startDate);
-                Utils.queryConsumeRecord(query, 100, 0, new FindListener<ConsumeRecord>() {
-                    @Override
-                    public void done(List<ConsumeRecord> list, BmobException e) {
-                        ProgressUtils.dismiss(getActivity());
-                        if (e == null) {
-//                                    datas = new ArrayList<>(list);
-                            int count = 0;
-                            for (ConsumeRecord record : list) {
-                                count += record.getCount();
+                                record.setText("消费项目总计：" + list.size() + "个");
+                                datas.clear();
+                                datas.addAll(list);
+                                myAdapter.setData(datas);
+                                myAdapter.notifyDataSetChanged();
+                            } else {
+                                Toast.makeText(getContext(), "搜索异常=" + Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
                             }
-                            record.setText("子消费项目总计：" + list.size() + "个,已核销" + count + "次");
-
-                            datas.clear();
-                            datas.addAll(list);
-                            myAdapter.setData(datas);
-                            myAdapter.notifyDataSetChanged();
-                        } else {
-                            Toast.makeText(getContext(), "搜索异常=" + Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
                         }
+                    });
 
-                    }
-                });
+                } else if (position == 1) {
+                    BmobQuery<ConsumeRecord> query = new BmobQuery<>();
+                    query.addWhereEqualTo("delete", false)
+                            .order("-createdAt")
+                            .include("from,operator,from.user,from.parent")
+                            .addWhereLessThan("createdAt", endDate)
+                            .addWhereGreaterThan("createdAt", startDate);
+                    Utils.queryConsumeRecord(query, 100, 0, new FindListener<ConsumeRecord>() {
+                        @Override
+                        public void done(List<ConsumeRecord> list, BmobException e) {
+                            ProgressUtils.dismiss(getActivity());
+                            if (e == null) {
+//                                    datas = new ArrayList<>(list);
+                                int count = 0;
+                                for (ConsumeRecord record : list) {
+                                    count += record.getCount();
+                                }
+                                record.setText("子消费项目总计：" + list.size() + "个,已核销" + count + "次");
 
-//       消费子项目
-//                BmobQuery<ConsumeRecord> query = new BmobQuery<>();
-//                query.addWhereEqualTo("delete", false)
-//                        .order("-createdAt")
-//                        .include("from,operator,from.user,from.parent")
-//                        .addWhereLessThan("createdAt", endDate)
-//                        .addWhereGreaterThan("createdAt", startDate)
-//                        .findObjects(new FindListener<ConsumeRecord>() {
-//                            @Override
-//                            public void done(List<ConsumeRecord> list, BmobException e) {
-//                                ProgressUtils.dismiss(getActivity());
-//                                if (e == null) {
-////                                    datas = new ArrayList<>(list);
-//                                    int count = 0;
-//                                    for (ConsumeRecord record : list) {
-//                                        count += record.getCount();
-//                                    }
-//                                    record.setText("子消费项目总计：" + list.size() + "个,已核销" + count + "次");
-//
-//                                    datas.clear();
-//                                    datas.addAll(list);
-//                                    myAdapter.setData(datas);
-//                                    myAdapter.notifyDataSetChanged();
-//                                } else {
-//                                    Toast.makeText(getContext(), "搜索异常="+Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
-//                                }
-//                            }
-//
-//                        });
+                                datas.clear();
+                                datas.addAll(list);
+                                myAdapter.setData(datas);
+                                myAdapter.notifyDataSetChanged();
+                            } else {
+                                Toast.makeText(getContext(), "搜索异常=" + Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
+                            }
+
+                        }
+                    });
+
+                }
             }
+
         } catch (Exception e) {
             ProgressUtils.dismiss(getActivity());
 
@@ -440,11 +481,17 @@ public class ReportFragment extends BaseFragment {
             holder.card_view.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (bean instanceof ConsumeProject){
+                    if (bean instanceof ConsumeProject) {
                         Intent intent = new Intent(getActivity(), ConsumeProjectActivity.class);
                         User2 user = ((ConsumeProject) bean).getUser();
                         intent.putExtra("user", user);
-                        intent.putExtra("ConsumeProject",(ConsumeProject)bean);
+                        intent.putExtra("ConsumeProject", (ConsumeProject) bean);
+                        startActivity(intent);
+                    }else if (bean instanceof ConsumeProjectLC) {
+                        Intent intent = new Intent(getActivity(), ConsumeProjectActivity.class);
+                        UserLC user = ((ConsumeProjectLC) bean).getUser();
+                        intent.putExtra("user", user);
+                        intent.putExtra("ConsumeProject", (ConsumeProjectLC) bean);
                         startActivity(intent);
                     }
 
@@ -510,7 +557,7 @@ public class ReportFragment extends BaseFragment {
                 ConsumeProject consumeProject = (ConsumeProject) bean;
                 Project parent = consumeProject.getParent();
                 User2 user = consumeProject.getUser();
-                name2.setText("所属会员:" + user.getName()+"-"+ user.getNewNumber()+ "(" + user.getUsername() + ")");
+                name2.setText("所属会员:" + user.getName() + "-" + user.getNewNumber() + "(" + user.getUsername() + ")");
                 name2.setTextColor(Color.RED);
                 name2.setVisibility(View.VISIBLE);
                 number.setText("类型:" + (parent.getType() == 2 ? "乐园" : "鲜花"));
@@ -545,7 +592,80 @@ public class ReportFragment extends BaseFragment {
                 Project parent = consumeProject.getParent();
                 User2 user = consumeProject.getUser();
 
-                name2.setText("所属会员:" + user.getName()+"-"+ user.getNewNumber() + "(" + user.getUsername() + ")");
+                name2.setText("所属会员:" + user.getName() + "-" + user.getNewNumber() + "(" + user.getUsername() + ")");
+                name2.setTextColor(Color.RED);
+                name2.setVisibility(View.VISIBLE);
+
+                time.setText((parent.getConsumeType() == 1 ? "金额" : "计次") + "消费");
+                StringBuilder sb = new StringBuilder();
+                sb.append("总 ");
+                if (parent.getConsumeType() == 1) {
+                    sb.append(parent.getMoney());
+                    sb.append(" 元");
+                } else {
+                    sb.append(parent.getTotalCount());
+                    sb.append(" 次");
+                }
+                time.setText("所属项目:" + consumeRecord.getFrom().getParent().getSimpleName());
+//                phone.setText(sb.toString());
+                if (!TextUtils.isEmpty((parent.getRemark()))) {
+                    remark.setText("项目备注:" + parent.getRemark());
+                    remark.setVisibility(View.VISIBLE);
+                } else {
+                    remark.setVisibility(View.GONE);
+                }
+                name1.setText("消费项目:" + consumeRecord.getName());
+                time1.setText("消费时间:" + consumeRecord.getDate() + "(" + consumeRecord.getUpdatedAt() + ")");
+                number.setVisibility(View.VISIBLE);
+                phone.setVisibility(View.GONE);
+                name.setVisibility(View.GONE);
+                if (consumeRecord.getFrom().getParent().getConsumeType() == 1) {
+                    number.setText("核销 " + consumeRecord.getMoney() + " 元");
+                } else {
+                    number.setText("核销 " + consumeRecord.getCount() + " 次");
+                }
+            }
+
+            if (bean instanceof ConsumeProjectLC) {
+                ConsumeProjectLC consumeProject = (ConsumeProjectLC) bean;
+                ProjectLC parent = consumeProject.getParent();
+                UserLC user = consumeProject.getUser();
+                name2.setText("所属会员:" + user.getName() + "-" + user.getNewNumber() + "(" + user.getUsername() + ")");
+                name2.setTextColor(Color.RED);
+                name2.setVisibility(View.VISIBLE);
+                number.setText("类型:" + (parent.getType() == 2 ? "乐园" : "鲜花"));
+                name.setText("金额:" + parent.getMoney() + "元");
+                time.setText((parent.getConsumeType() == 1 ? "金额" : "计次") + "消费");
+                StringBuilder sb = new StringBuilder();
+                sb.append("总");
+                if (parent.getConsumeType() == 1) {
+                    sb.append(parent.getMoney());
+                    sb.append(" 元");
+                } else {
+                    sb.append(parent.getTotalCount());
+                    sb.append(" 次");
+                }
+
+                phone.setText(sb.toString());
+                if (!TextUtils.isEmpty((parent.getRemark()))) {
+                    remark.setText("项目备注:" + parent.getRemark());
+                    remark.setVisibility(View.VISIBLE);
+                } else {
+                    remark.setVisibility(View.GONE);
+                }
+                name1.setText("项目名称:" + parent.getName());
+                time1.setText("项目消费时间:" + consumeProject.oldCrateTime);
+                number.setVisibility(View.GONE);
+                name.setVisibility(View.GONE);
+                phone.setVisibility(View.VISIBLE);
+
+            } else if (bean instanceof ConsumeRecordLC) {
+                ConsumeRecordLC consumeRecord = (ConsumeRecordLC) bean;
+                ConsumeProjectLC consumeProject = consumeRecord.getFrom();
+                ProjectLC parent = consumeProject.getParent();
+                UserLC user = consumeProject.getUser();
+
+                name2.setText("所属会员:" + user.getName() + "-" + user.getNewNumber() + "(" + user.getUsername() + ")");
                 name2.setTextColor(Color.RED);
                 name2.setVisibility(View.VISIBLE);
 

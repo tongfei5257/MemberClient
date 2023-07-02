@@ -1,12 +1,16 @@
 package com.example.memberclient.model;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import cn.bmob.v3.BmobObject;
 import cn.leancloud.LCObject;
+import cn.leancloud.LCUser;
 
-public class UserLC extends LCObject {
+public class UserLC extends LCObject implements Parcelable {
 
     public String name = "";
     public String phone = "";
@@ -30,7 +34,7 @@ public class UserLC extends LCObject {
     public boolean delete;
 
     //    操作人
-    public User operator;
+    public LCUser operator;
 
     /**
      * 注册时间
@@ -40,6 +44,39 @@ public class UserLC extends LCObject {
     public String oldId = "";
     //    bomb id
     public String bmId;
+
+    public UserLC() {
+    }
+
+    protected UserLC(Parcel in) {
+        name = in.readString();
+        phone = in.readString();
+        username = in.readString();
+        password = in.readString();
+        remark = in.readString();
+        type = in.readString();
+        number = in.readString();
+        newNumber = in.readInt();
+        pass = in.readString();
+        delete = in.readByte() != 0;
+        date = in.readString();
+        oldId = in.readString();
+        bmId = in.readString();
+        setObjectId(in.readString());
+    }
+
+    public static final Creator<UserLC> CREATOR = new Creator<UserLC>() {
+        @Override
+        public UserLC createFromParcel(Parcel in) {
+            return new UserLC(in);
+        }
+
+        @Override
+        public UserLC[] newArray(int size) {
+            return new UserLC[size];
+        }
+    };
+
     public String getName() {
         return name;
     }
@@ -117,11 +154,11 @@ public class UserLC extends LCObject {
         this.password = password;
     }
 
-    public User getOperator() {
+    public LCUser getOperator() {
         return operator;
     }
 
-    public UserLC setOperator(User operator) {
+    public UserLC setOperator(LCUser operator) {
         this.operator = operator;
         return this;
     }
@@ -178,10 +215,32 @@ public class UserLC extends LCObject {
         put("newNumber", newNumber);
         put("pass", pass);
         put("delete", delete);
-        put("operator", operator);
+        put("date", date);
+        put("oldId", oldId);
+        put("remark", remark);
+        put("bmId", bmId);
+        LCObject operator = LCObject.createWithoutData("_User", LCUser.getCurrentUser().getObjectId());
+        put("operator",operator);
+        setObjectId(getObjectId());
+        setClassName("UserLC");
+        return this;
+    }
+    public UserLC saveV3() {
+        put("name", name);
+        put("phone", phone);
+        put("username", username);
+        put("remark", remark);
+        put("type", type);
+        put("number", number);
+        put("newNumber", newNumber);
+        put("pass", pass);
+        put("delete", delete);
+        put("remark", remark);
         put("date", date);
         put("oldId", oldId);
         put("bmId", bmId);
+        LCObject operator = LCObject.createWithoutData("_User", LCUser.getCurrentUser().getObjectId());
+        put("operator",operator);
         setObjectId(getObjectId());
         setClassName("UserLC");
         return this;
@@ -198,7 +257,7 @@ public class UserLC extends LCObject {
         user2.newNumber = source.newNumber;
         user2.pass = source.pass;
         user2.delete = source.delete;
-        user2.operator = source.operator;
+//        user2.operator = source.operator;
         user2.date = source.date;
 //        user2.oldId = source.getObjectId();
         user2.bmId = source.getObjectId();
@@ -219,6 +278,7 @@ public class UserLC extends LCObject {
         projectLC.pass = lcObject.getString("pass");
         projectLC.delete = lcObject.getBoolean("delete");
         projectLC.bmId = lcObject.getString("bmId");
+        projectLC.date = lcObject.getString("date");
         projectLC.objectId = lcObject.getObjectId();
         return projectLC;
     }
@@ -247,4 +307,26 @@ public class UserLC extends LCObject {
         }
     }
 
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(name);
+        dest.writeString(phone);
+        dest.writeString(username);
+        dest.writeString(password);
+        dest.writeString(remark);
+        dest.writeString(type);
+        dest.writeString(number);
+        dest.writeInt(newNumber);
+        dest.writeString(pass);
+        dest.writeByte((byte) (delete ? 1 : 0));
+        dest.writeString(date);
+        dest.writeString(oldId);
+        dest.writeString(bmId);
+        dest.writeString(getObjectId());
+    }
 }
