@@ -10,9 +10,13 @@ import android.util.Log;
 
 import com.example.memberclient.ISaveCallback;
 import com.example.memberclient.model.ConsumeProject;
+import com.example.memberclient.model.ConsumeProjectLC;
 import com.example.memberclient.model.ConsumeRecord;
+import com.example.memberclient.model.ConsumeRecordLC;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.Source;
+import com.example.memberclient.model.SourceLC;
 import com.example.memberclient.model.User2;
 import com.example.memberclient.model.UserLC;
 import com.google.gson.Gson;
@@ -36,6 +40,7 @@ import cn.leancloud.LCObject;
 import cn.leancloud.LCQuery;
 
 public class Utils {
+    public static final Gson GSON = new Gson();
     public static List sConsumeRecordResult = new ArrayList<>();
     public static List sUserResult = new ArrayList<>();
     public static List sConsumeProjectResult = new ArrayList<>();
@@ -165,6 +170,97 @@ public class Utils {
         });
     }
 
+    @TargetApi(Build.VERSION_CODES.FROYO)
+    public synchronized static void saveLC(Context context, ISaveCallback<SourceLC> callback) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final File externalCacheDir = context.getExternalCacheDir();
+                count = 0;
+                SourceLC source = new SourceLC();
+
+                Gson gson = new Gson();
+                List<UserLC> list = queryLCUser();
+//       ============================================
+                String s = gson.toJson(list);
+                Log.e("tf_test", "user=" + list.size());
+                File file = new File(externalCacheDir, "user.json");
+                try {
+                    FileUtils.writeStringToFile(file, s, "utf-8");
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+                source.users = list;
+                count++;
+                write2local(context, source, count, callback);
+//       ============================================
+                List<LCObject> projects =new LCQuery<>("ProjectLC")
+                        .whereEqualTo("delete", false)
+                        .orderByAscending("createdAt").find();
+                s = gson.toJson(projects);
+                Log.e("tf_test", "project=" + projects.size());
+                file = new File(externalCacheDir, "project.json");
+                try {
+                    FileUtils.writeStringToFile(file, s, "utf-8");
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+                List<ProjectLC> list2=new ArrayList<>();
+                for (LCObject lcObject:projects) {
+                    list2.add(ProjectLC.toBean(lcObject));
+                }
+                source.projects = list2;
+                count++;
+//        ===============================================
+                List<LCObject> cps=new ArrayList<>();
+                queryLCConsumeProject(1000,0,cps);
+                List<ConsumeProjectLC> list3=new ArrayList<>();
+                for (LCObject lcObject:cps) {
+                    list3.add(ConsumeProjectLC.toBean(lcObject));
+                }
+                source.cps = list3;
+                count++;
+                write2local(context, source, count, callback);
+                gson = new Gson();
+                s = gson.toJson(list);
+
+                file = new File(externalCacheDir, "ConsumeProject.json");
+                Log.e("tf_test", file.getAbsolutePath());
+                Log.e("tf_test", "ConsumeProject=" + list3.size());
+
+                try {
+                    FileUtils.writeStringToFile(file, s, "utf-8");
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+
+//        =================================================
+
+                List<LCObject> crs=new ArrayList<>();
+                queryLCConsumeRecord(1000,0,crs);
+                List<ConsumeRecordLC> list4=new ArrayList<>();
+                for (LCObject lcObject:crs) {
+                    list4.add(ConsumeRecordLC.toBean(lcObject));
+                }
+
+                s = gson.toJson(list);
+
+                file = new File(externalCacheDir, "ConsumeRecord.json");
+                Log.e("tf_test", file.getAbsolutePath());
+                Log.e("tf_test", "queryConsumeRecord=" + list4.size());
+                source.crs = list4;
+                count++;
+                write2local(context, source, count, callback);
+                try {
+                    FileUtils.writeStringToFile(file, s, "utf-8");
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+            }
+        }).start();
+
+    }
+
     private static void write2local(Context context, Source source, int count, ISaveCallback callback) {
         Log.e("tf_test", "write2local=" + count);
         final File externalCacheDir = context.getExternalCacheDir();
@@ -180,6 +276,29 @@ public class Utils {
             } catch (IOException ioException) {
                 ioException.printStackTrace();
             }
+        }
+    }
+    private static void write2local(Context context, SourceLC source, int count, ISaveCallback callback) {
+        Log.e("tf_test", "write2local=" + count);
+        final File externalCacheDir = context.getExternalCacheDir();
+
+        if (count == 4) {
+            //  gson.toJson(source) 防止oom
+//            Gson gson = new Gson();
+//            String s = gson.toJson(source);
+//            File file = new File(externalCacheDir, "source.json");
+//            Log.e("tf_test", "write2local=" + file.getAbsolutePath());
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    callback.onSave(source);
+                }
+            });
+//            try {
+//                FileUtils.writeStringToFile(file, s, "utf-8");
+//            } catch (IOException ioException) {
+//                ioException.printStackTrace();
+//            }
         }
     }
 
@@ -327,6 +446,7 @@ public class Utils {
     public static List<LCObject> queryLCUser(int limit, int skip, List<LCObject> result) {
         LCQuery<LCObject> lcObjectLCQuery = new LCQuery<>("UserLC")
                 .whereEqualTo("delete", false)
+//                .includeACL(true)
                 .orderByDescending("createdAt");
         return queryLCUser(lcObjectLCQuery,limit,skip,result);
     }
@@ -361,6 +481,8 @@ public class Utils {
 //        return result;
         return queryLCConsumeProject(new LCQuery<>("ConsumeProjectLC")
                 .whereEqualTo("delete", false)
+                .include("parent,user")
+//                .includeACL(true)
                     .orderByAscending("createdAt"),limit,skip,result);
     }
     public static List<LCObject> queryLCConsumeProject(LCQuery<LCObject> lcQuery,int limit, int skip, List<LCObject> result) {
@@ -383,6 +505,8 @@ public class Utils {
         try {
             List<LCObject> UserLCs = new LCQuery<>("ConsumeRecordLC")
                     .whereEqualTo("delete", false)
+                    .include("from,from.parent,,from.user")
+//                    .includeACL(true)
                     .orderByAscending("createdAt").setLimit(limit).setSkip(skip).find();
             Log.e("tf_test","ConsumeRecordLC="+UserLCs.size()+",limit="+limit+",skip="+skip);
             if (UserLCs.size() > 0) {
@@ -431,6 +555,28 @@ public class Utils {
             e.printStackTrace();
         }
         return stringBuilder.toString();
+    }
+    public static<T> List<T> getJsonV2(String fileName, Context context,Class<T> clazz) {
+        //将json数据变成字符串
+        StringBuilder stringBuilder = new StringBuilder();
+        List<T> result=new ArrayList<>();
+        try {
+
+            //获取assets资源管理器
+            AssetManager assetManager = context.getAssets();
+            //通过管理器打开文件并读取
+            BufferedReader bf = new BufferedReader(new InputStreamReader(
+                    assetManager.open(fileName)));
+            String line;
+            while ((line = bf.readLine()) != null) {
+                result.add( new Gson().fromJson(line,clazz));
+                stringBuilder.append(line);
+            }
+            bf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
 }

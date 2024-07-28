@@ -40,7 +40,9 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
     public String oldId;
     public String oldCrateTime;
     public String bmId;
-
+    public String objectId;
+    public String createdAt;
+    public String updatedAt;
     public ConsumeProjectLC() {
     }
 
@@ -127,15 +129,16 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
     public ConsumeProjectLC(ConsumeProjectLC invdata) {
         this.delete=invdata.delete;
         setObjectId(invdata.getObjectId());
+        objectId=invdata.getObjectId();
 //        setCreatedAt(invdata.getCreatedAt());
 //        setUpdatedAt(invdata.getUpdatedAt());
 
     }
-    public List<ConsumeRecord> consumeRecords=new ArrayList<>();
+    public List<ConsumeRecordLC> consumeRecords=new ArrayList<>();
 
-    public void addConsumeRecord(ConsumeRecord consumeRecord) {
-        for (ConsumeRecord cr : consumeRecords) {
-            if (cr.getObjectId().equals(consumeRecord.getObjectId())) {
+    public void addConsumeRecord(ConsumeRecordLC consumeRecord) {
+        for (ConsumeRecordLC cr : consumeRecords) {
+            if (cr.objectId.equals(consumeRecord.objectId)) {
                 return;
             }
         }
@@ -146,7 +149,7 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
         if (consumeRecords.size()==0){
             return totalCount;
         }
-        for (ConsumeRecord cr : consumeRecords) {
+        for (ConsumeRecordLC cr : consumeRecords) {
             totalCount-=cr.getCount();
         }
         return totalCount;
@@ -208,7 +211,8 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
                 projectLC.oldCrateTime = simpleDateFormat.format(createdAt);
             }
         }
-
+        projectLC.createdAt = lcObject.getCreatedAtString();
+        projectLC.updatedAt = lcObject.getUpdatedAtString();
         return projectLC;
     }
 

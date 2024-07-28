@@ -52,7 +52,8 @@ public class ProjectLC extends LCObject implements Parcelable {
     public String oldId;
 //    bomb id
     public String bmId;
-
+    public String objectId;
+    public String createdAt;
     public ProjectLC() {
     }
 

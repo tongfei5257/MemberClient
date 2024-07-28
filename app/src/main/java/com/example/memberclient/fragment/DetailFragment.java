@@ -65,6 +65,7 @@ import cn.bmob.v3.datatype.BatchResult;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
 import cn.bmob.v3.listener.QueryListListener;
+import cn.leancloud.LCACL;
 import cn.leancloud.LCException;
 import cn.leancloud.LCObject;
 import cn.leancloud.LCQuery;
@@ -453,6 +454,7 @@ public class DetailFragment extends BaseFragment {
         size = root.findViewById(R.id.size);
         editText = root.findViewById(R.id.et_search_content);
         recyclerView = root.findViewById(R.id.recyclerView);
+
         Button btn_transform = root.findViewById(R.id.btn_transform);
         MyApp myApp = (MyApp) getContext().getApplicationContext();
         if (MyApp.USE_LC) {
@@ -941,6 +943,92 @@ public class DetailFragment extends BaseFragment {
 //                }
 //            }
 //        });
+
+        root.findViewById(R.id.btn_acl).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ACL();
+            }
+        });
+    }
+
+    private void ACL() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ArrayList<LCObject> result = new ArrayList<>();
+                Utils.queryLCConsumeProject(1000,0, result);
+                ArrayList<LCObject> result2 = new ArrayList<>();
+                Utils.queryLCUser(1000,0, result2);
+                ArrayList<LCObject> result3 = new ArrayList<>();
+                Utils.queryLCConsumeRecord(1000,0, result3);
+
+
+                Log.e("tf_test","before result="+result.size());
+                Iterator<LCObject> iterator1 = result.iterator();
+                while (iterator1.hasNext()){
+                    LCObject next = iterator1.next();
+                    LCACL acl = next.getACL();
+                    if (acl.getPublicWriteAccess()){
+//                        Log.e("tf_test",next.getObjectId()+":有写权限");
+//                        result.remove(next);
+                        iterator1.remove();
+                    }else {
+                        Log.e("tf_test",next.getObjectId()+":无写权限");
+                    }
+                }
+                Log.e("tf_test","end result="+result.size());
+
+                Log.e("tf_test","before result2="+result2.size());
+                Iterator<LCObject> iterator2 = result2.iterator();
+                while (iterator2.hasNext()){
+                    LCObject next = iterator2.next();
+                    if (next.getACL().getPublicWriteAccess()){
+//                        Log.e("tf_test",next.getObjectId()+":有写权限");
+//                        result2.remove(next);
+                        iterator2.remove();
+                    }else {
+                        Log.e("tf_test",next.getObjectId()+":无写权限");
+                    }
+                }
+                Log.e("tf_test","end result2="+result2.size());
+
+
+                Log.e("tf_test","before result3="+result3.size());
+                Iterator<LCObject> iterator3 = result3.iterator();
+                while (iterator3.hasNext()){
+                    LCObject next = iterator3.next();
+                    if (next.getACL().getPublicWriteAccess()){
+//                        Log.e("tf_test",next.getObjectId()+":有写权限");
+//                        result3.remove(next);
+                        iterator3.remove();
+                    }else {
+                        Log.e("tf_test",next.getObjectId()+":无写权限");
+                    }
+                }
+                Log.e("tf_test","end result3="+result3.size());
+
+
+                ArrayList<LCObject> result4 = new ArrayList<>();
+                result4.addAll(result);
+                result4.addAll(result2);
+                result4.addAll(result3);
+                Log.e("tf_test","end result4="+result4.size());
+                for (LCObject lcObject:result4) {
+
+                    LCACL acl = lcObject.getACL();
+                    acl.setPublicReadAccess(true);// 设置公开的「读」权限，任何人都可阅读
+                    acl.setPublicWriteAccess(true);
+                    lcObject.setACL(acl);
+                }
+                try {
+                    LCObject.saveAll(result4);
+                } catch (LCException e) {
+                    Toast.makeText(getContext(), "搜索异常:"+Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
+
+                }
+            }
+        }).start();
     }
 
     private List<ConsumeProject> consumeProjects;

@@ -44,7 +44,9 @@ public class UserLC extends LCObject implements Parcelable {
     public String oldId = "";
     //    bomb id
     public String bmId;
-
+    public String objectId;
+    public String createdAt;
+    public String updatedAt;
     public UserLC() {
     }
 
@@ -280,15 +282,17 @@ public class UserLC extends LCObject implements Parcelable {
         projectLC.bmId = lcObject.getString("bmId");
         projectLC.date = lcObject.getString("date");
         projectLC.objectId = lcObject.getObjectId();
+        projectLC.createdAt = lcObject.getCreatedAtString();
+        projectLC.updatedAt = lcObject.getUpdatedAtString();
         return projectLC;
     }
-    public List<ConsumeProject> consumeProjects = new ArrayList<>();
+    public List<ConsumeProjectLC> consumeProjects = new ArrayList<>();
 
 
-    public void setConsumeProject(ConsumeProject consumeProject) {
+    public void setConsumeProject(ConsumeProjectLC consumeProject) {
         boolean find=false;
-        for (ConsumeProject cp:consumeProjects) {
-            if (cp.getObjectId().equals(consumeProject.getObjectId())){
+        for (ConsumeProjectLC cp:consumeProjects) {
+            if (cp.objectId.equals(consumeProject.objectId)){
                 find=true;
                 break;
             }
@@ -298,13 +302,14 @@ public class UserLC extends LCObject implements Parcelable {
         }
     }
 
-    public void setConsumeRecord(ConsumeRecord consumeRecord) {
-        for (ConsumeProject cp:consumeProjects) {
-            if (consumeRecord.getFrom().getObjectId().equals(cp.getObjectId())){
+    public boolean setConsumeRecord(ConsumeRecordLC consumeRecord) {
+        for (ConsumeProjectLC cp:consumeProjects) {
+            if (consumeRecord.getFrom().objectId.equals(cp.objectId)){
                 cp.addConsumeRecord(consumeRecord);
-                break;
+               return true;
             }
         }
+        return false;
     }
 
     @Override

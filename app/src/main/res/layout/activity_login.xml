@@ -66,7 +66,12 @@
         android:layout_below="@id/ll"
         android:layout_marginTop="60dp"
         android:text="登录" />
-
+    <Button
+        android:id="@+id/btn_transform"
+        style="@style/btn_normal_style"
+        android:layout_below="@id/ll"
+        android:layout_marginTop="190dp"
+        android:text="数据转换" />
     <CheckBox
         android:id="@+id/cb_use_lc"
         android:layout_width="match_parent"

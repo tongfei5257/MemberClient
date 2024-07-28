@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,10 +26,15 @@ import com.example.memberclient.ISaveCallback;
 import com.example.memberclient.R;
 import com.example.memberclient.application.MyApp;
 import com.example.memberclient.model.ConsumeProject;
+import com.example.memberclient.model.ConsumeProjectLC;
 import com.example.memberclient.model.ConsumeRecord;
+import com.example.memberclient.model.ConsumeRecordLC;
 import com.example.memberclient.model.Project;
+import com.example.memberclient.model.ProjectLC;
 import com.example.memberclient.model.Source;
+import com.example.memberclient.model.SourceLC;
 import com.example.memberclient.model.User2;
+import com.example.memberclient.model.UserLC;
 import com.example.memberclient.ui.AboutActivity;
 import com.example.memberclient.ui.LoginActivity;
 import com.example.memberclient.ui.MainActivity;
@@ -178,38 +184,75 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
 //                    return;
 //                }
                 ProgressUtils.show(getContext(), "导出中,请稍后...");
-                Utils.save(getContext(), new ISaveCallback() {
-                    @Override
-                    public void onSave(Source source) {
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    File file = parseSource(source);
-                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            ProgressUtils.dismiss();
-                                            ToastUtil.show(getContext(), "导出成功", Toast.LENGTH_LONG);
-                                            shareFile(getContext(), file);
-                                        }
-                                    });
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            ProgressUtils.dismiss();
-                                            ToastUtil.show(getContext(), "导出失败" + Log.getStackTraceString(e), Toast.LENGTH_LONG);
+                if (MyApp.USE_LC){
+                    Utils.saveLC(getContext(), new ISaveCallback<SourceLC>() {
+                        @Override
+                        public void onSave(SourceLC source) {
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        File file = parseSource(getContext(),source);
+                                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                ProgressUtils.dismiss();
+                                                ToastUtil.show(getContext(), "导出成功", Toast.LENGTH_LONG);
+                                                shareFile(getContext(), file);
+                                            }
+                                        });
+                                    } catch (Exception e) {
+                                        Log.e("tf_test","导出失败"+Log.getStackTraceString(e));
+                                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                ProgressUtils.dismiss();
+                                                ToastUtil.show(getContext(), "导出失败" + Log.getStackTraceString(e), Toast.LENGTH_LONG);
 
-                                        }
-                                    });
+                                            }
+                                        });
+                                    }
                                 }
-                            }
-                        }).start();
+                            }).start();
 
-                    }
-                });
+                        }
+                    });
+                }else {
+                    Utils.save(getContext(), new ISaveCallback<Source>() {
+                        @Override
+                        public void onSave(Source source) {
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        File file = parseSource(source);
+                                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                ProgressUtils.dismiss();
+                                                ToastUtil.show(getContext(), "导出成功", Toast.LENGTH_LONG);
+                                                shareFile(getContext(), file);
+                                            }
+                                        });
+                                    } catch (Exception e) {
+                                        Log.e("tf_test","导出失败"+Log.getStackTraceString(e));
+                                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                ProgressUtils.dismiss();
+                                                ToastUtil.show(getContext(), "导出失败" + Log.getStackTraceString(e), Toast.LENGTH_LONG);
+
+                                            }
+                                        });
+                                    }
+                                }
+                            }).start();
+
+                        }
+                    });
+                }
+
+
 
                 break;
 
@@ -418,6 +461,406 @@ public class MineFragment extends BaseFragment implements View.OnClickListener {
                         row3.createCell(14).setCellValue(consumeRecord.getUpdatedAt());
                         row3.createCell(15).setCellValue(consumeRecord.getRemark());
                         row3.createCell(16).setCellValue(consumeRecord.getObjectId());
+                    }
+
+                }
+            }
+        }
+        workbook.write(out);
+        out.flush();
+        out.close();
+        Log.d("tf_test", "生成excel结束:" + excelFile.getAbsolutePath());
+        return excelFile;
+    }
+    public  File parseSource(Context context,SourceLC source) throws Exception {
+        long startTime=System.currentTimeMillis();
+        Log.d("tf_test", "开始解析数据......");
+
+
+        List<ConsumeRecordLC> crList = source.crs;
+        List<UserLC> userList = source.users;
+        List<ConsumeProjectLC> cpList = source.cps;
+        List<ProjectLC> pList = source.projects;
+
+
+        Log.d("tf_test", "开始绑定CP....1");
+        int errorCount = 0;
+        for (ConsumeProjectLC invdata : cpList) {
+            UserLC userId = invdata.user;
+            for (UserLC tUser : userList) {
+                if (TextUtils.isEmpty(tUser.objectId)){
+                    Log.d("tf_test", "tUser 异常：" + errorCount);
+                    errorCount++;
+                    continue;
+                }
+//                if (tUser.getObjectId() == null) {
+//                    Log.d("tf_test", "tUser 异常：" + errorCount);
+//                    errorCount++;
+//                    continue;
+//                }
+                if (tUser.objectId.equals(userId.objectId)) {
+                    ProjectLC project = ProjectLC.find(pList, invdata.getParent());
+                    if (project == null) {
+                        Log.d("tf_test", "find project 异常=" + invdata);
+                        continue;
+                    }
+//                    ConsumeProjectLC consumeProject = new ConsumeProjectLC(invdata);
+//                    consumeProject.setParent(project);
+//                    consumeProject.setUser(tUser);
+                    tUser.setConsumeProject(invdata);
+                }
+            }
+        }
+        Log.d("tf_test", "开始合并CR....2");
+        int count = -1;
+        int succCount=0;
+        int failureCount=0;
+        for (ConsumeRecordLC consumeRecord : crList) {
+            count++;
+            ConsumeProjectLC from = consumeRecord.getFrom();
+            UserLC temp = from.getUser();
+            if (from.objectId == null || temp.objectId == null || temp.objectId.equals("")
+                    || from.objectId.equals("null")) {
+                failureCount++;
+                Log.d("tf_test", "开始解析ConsumeRecord第" + count + "个发生异常"+"");
+                continue;
+            }
+            boolean findSuccess=false;
+            for (UserLC tUser : userList) {
+                if (tUser.objectId.equals(temp.objectId)) {
+                    Log.d("tf_test", "开始setConsumeRecord第" + count + ":"+consumeRecord.objectId);
+                   if (tUser.setConsumeRecord(consumeRecord)){
+                       Log.d("tf_test", "setConsumeRecord第" + count + ":"+consumeRecord.objectId+" 成功");
+                       findSuccess=true;
+                       succCount++;
+                   }
+                }
+            }
+            if (!findSuccess){
+                failureCount++;
+                Log.e("tf_test",consumeRecord.objectId+":合并CR失败");
+            }
+        }
+        Log.d("tf_test", "合并CR结束,成功数量："+succCount+",失败数量："+failureCount+",总数量："+crList.size());
+        Log.d("tf_test", "开始生成execl表格");
+//            HSSFWorkbook
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd-hh-mm");
+        String format = simpleDateFormat.format(new Date());
+        File excelFile = new File(context.getExternalCacheDir(), "会员数据(" + format + ").xls");
+        FileOutputStream out = new FileOutputStream(excelFile);
+        // 第一步，创建一个workbook，对应一个Excel文件
+        HSSFWorkbook workbook = new HSSFWorkbook();
+
+
+        // 第二步，在webbook中添加一个sheet,对应Excel文件中的sheet
+        HSSFSheet userSt = workbook.createSheet("会员&项目表");
+        HSSFSheet hssfSheet2 = workbook.createSheet("会员表");
+        HSSFSheet hssfSheet3 = workbook.createSheet("会员消费记录表");
+        // 第三步，在sheet中添加表头第0行,注意老版本poi对Excel的行数列数有限制short
+        int index = 0;
+        int index2 = 0, index3 = 0;
+
+        HSSFRow row = userSt.createRow(index);
+        // 第四步，创建单元格，并设置值表头 设置表头居中
+        HSSFCellStyle hssfCellStyle = workbook.createCellStyle();
+        String[] titles = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id","是否已删除","会员id"
+        };
+        String[] titles2 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id","是否已删除"
+        };
+        String[] titles3 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id", "消费项目", "消费时间", "消费CTime", "消费uTime", "消费备注", "消费Id","是否已删除","核销次数"
+        };
+
+        HSSFRow row2 = hssfSheet2.createRow(index2);
+        HSSFRow row3 = hssfSheet3.createRow(index3);
+        HSSFCell hssfCell = null;
+        for (int i = 0; i < titles.length; i++) {
+            hssfCell = row.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+        for (int i = 0; i < titles2.length; i++) {
+            hssfCell = row2.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles2[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+        for (int i = 0; i < titles3.length; i++) {
+            hssfCell = row3.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles3[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+
+        for (int i = 0; i < userList.size(); i++) {
+            UserLC user2 = userList.get(i);
+            List<ConsumeProjectLC> consumeProjects = user2.consumeProjects;
+            index2++;
+            row2 = hssfSheet2.createRow(index2);
+            row2.createCell(0).setCellValue(user2.newNumber);
+            row2.createCell(1).setCellValue(user2.name);
+            row2.createCell(2).setCellValue(user2.username);
+            row2.createCell(3).setCellValue(user2.remark);
+            row2.createCell(4).setCellValue(user2.date);
+            row2.createCell(5).setCellValue(user2.createdAt);
+            row2.createCell(6).setCellValue(user2.updatedAt);
+            row2.createCell(7).setCellValue(user2.objectId);
+            row2.createCell(8).setCellValue(user2.delete?"是":"否");
+            if (consumeProjects.size() == 0) {
+                Log.d("tf_test", user2 + "未有绑定项目");
+                index++;
+                row = userSt.createRow(index);
+                // 第六步，创建单元格，并设置值
+                row.createCell(0).setCellValue(user2.newNumber);
+                row.createCell(1).setCellValue(user2.name);
+                row.createCell(2).setCellValue(user2.username);
+                row.createCell(3).setCellValue(user2.remark);
+                row.createCell(4).setCellValue(user2.date);
+                row.createCell(5).setCellValue(user2.createdAt);
+                row.createCell(6).setCellValue(user2.updatedAt);
+                row.createCell(7).setCellValue(user2.objectId);
+                row.createCell(8).setCellValue(user2.delete?"是":"否");
+                continue;
+            }
+
+
+            for (ConsumeProjectLC consumeProject : consumeProjects) {
+                index++;
+                row = userSt.createRow(index);
+                row.createCell(0).setCellValue(user2.newNumber);
+                row.createCell(1).setCellValue(user2.name);
+                row.createCell(2).setCellValue(user2.username);
+                row.createCell(3).setCellValue(user2.remark);
+                row.createCell(4).setCellValue(user2.date);
+                row.createCell(5).setCellValue(user2.createdAt);
+                row.createCell(6).setCellValue(user2.updatedAt);
+                row.createCell(7).setCellValue(user2.getObjectId());
+                row.createCell(8).setCellValue(consumeProject.getParent().getName());
+                row.createCell(9).setCellValue(consumeProject.getParent().getTotalCount());
+                row.createCell(10).setCellValue(consumeProject.getRemainCount());
+                row.createCell(11).setCellValue(consumeProject.objectId);
+                row.createCell(12).setCellValue(consumeProject.delete?"是":"否");
+                row.createCell(13).setCellValue(user2.objectId);
+
+
+                List<ConsumeRecordLC> consumeRecords = consumeProject.consumeRecords;
+                if (consumeRecords.size() > 0) {
+                    for (ConsumeRecordLC consumeRecord : consumeRecords) {
+                        if (consumeRecord == null || TextUtils.isEmpty(consumeRecord.objectId)) {
+                            Log.d("tf_test", consumeRecord + ":有异常");
+                            continue;
+                        }
+                        index3++;
+                        row3 = hssfSheet3.createRow(index3);
+                        row3.createCell(0).setCellValue(user2.newNumber);
+                        row3.createCell(1).setCellValue(user2.name);
+                        row3.createCell(2).setCellValue(user2.username);
+                        row3.createCell(3).setCellValue(user2.remark);
+                        row3.createCell(4).setCellValue(user2.date);
+                        row3.createCell(5).setCellValue(user2.createdAt);
+                        row3.createCell(6).setCellValue(user2.updatedAt);
+                        row3.createCell(7).setCellValue(consumeProject.getParent().getName());
+                        row3.createCell(8).setCellValue(consumeProject.getParent().getTotalCount());
+                        row3.createCell(9).setCellValue(consumeProject.getRemainCount());
+                        row3.createCell(10).setCellValue(consumeProject.objectId);
+                        row3.createCell(11).setCellValue(consumeRecord.getName());
+                        row3.createCell(12).setCellValue(consumeRecord.getDate());
+                        row3.createCell(13).setCellValue(consumeRecord.createdAt);
+                        row3.createCell(14).setCellValue(consumeRecord.updatedAt);
+                        row3.createCell(15).setCellValue(consumeRecord.getRemark());
+                        row3.createCell(16).setCellValue(consumeRecord.objectId);
+                        row3.createCell(17).setCellValue(consumeRecord.delete?"是":"否");
+                        row3.createCell(18).setCellValue(consumeRecord.getCount());
+
+                    }
+
+                }
+            }
+        }
+        workbook.write(out);
+        out.flush();
+        out.close();
+        Log.d("tf_test", "生成excel结束:" + excelFile.getAbsolutePath()+",耗时："+(System.currentTimeMillis()-startTime));
+        return excelFile;
+    }
+    public  File parseSourceV2(Context context,SourceLC source) throws Exception {
+        Log.d("tf_test", "开始解析数据......");
+
+
+        List<ConsumeRecordLC> crList = source.crs;
+        List<UserLC> userList = source.users;
+        List<ConsumeProjectLC> cpList = source.cps;
+        List<ProjectLC> pList = source.projects;
+
+
+        Log.d("tf_test", "开始绑定CP....1");
+        int errorCount = 0;
+        for (ConsumeProjectLC invdata : cpList) {
+            UserLC userId = invdata.user;
+            for (UserLC tUser : userList) {
+                if (tUser.getObjectId() == null) {
+                    Log.d("tf_test", "tUser 异常：" + errorCount);
+                    errorCount++;
+                    continue;
+                }
+                if (tUser.getObjectId().equals(userId.getObjectId())) {
+                    ProjectLC project = ProjectLC.find(pList, invdata.getParent());
+                    if (project == null) {
+                        Log.d("tf_test", "find project 异常=" + invdata);
+                        continue;
+                    }
+                    ConsumeProjectLC consumeProject = new ConsumeProjectLC(invdata);
+                    consumeProject.setParent(project);
+                    consumeProject.setUser(tUser);
+                    tUser.setConsumeProject(consumeProject);
+                }
+            }
+        }
+        Log.d("tf_test", "开始合并CR....2");
+        int count = -1;
+
+        for (ConsumeRecordLC consumeRecord : crList) {
+            count++;
+            ConsumeProjectLC from = consumeRecord.getFrom();
+            UserLC temp = from.getUser();
+            if (from.objectId == null || temp.objectId == null || temp.objectId.equals("")
+                    || from.objectId.equals("null")) {
+                Log.d("tf_test", "开始解析ConsumeRecord第" + count + "个发生异常"+"");
+                continue;
+            }
+            for (UserLC tUser : userList) {
+                if (tUser.getObjectId().equals(temp.getObjectId())) {
+                    tUser.setConsumeRecord(consumeRecord);
+                }
+            }
+        }
+        Log.d("tf_test", "合并CR结束");
+        Log.d("tf_test", "开始生成execl表格");
+//            HSSFWorkbook
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd-hh-mm");
+        String format = simpleDateFormat.format(new Date());
+        File excelFile = new File(context.getExternalCacheDir(), "会员数据(" + format + ").xls");
+        FileOutputStream out = new FileOutputStream(excelFile);
+        // 第一步，创建一个workbook，对应一个Excel文件
+        HSSFWorkbook workbook = new HSSFWorkbook();
+
+
+        // 第二步，在webbook中添加一个sheet,对应Excel文件中的sheet
+        HSSFSheet userSt = workbook.createSheet("会员&项目表");
+        HSSFSheet hssfSheet2 = workbook.createSheet("会员表");
+        HSSFSheet hssfSheet3 = workbook.createSheet("会员消费记录表");
+        // 第三步，在sheet中添加表头第0行,注意老版本poi对Excel的行数列数有限制short
+        int index = 0;
+        int index2 = 0, index3 = 0;
+
+        HSSFRow row = userSt.createRow(index);
+        // 第四步，创建单元格，并设置值表头 设置表头居中
+        HSSFCellStyle hssfCellStyle = workbook.createCellStyle();
+        String[] titles = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id"
+        };
+        String[] titles2 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "会员Id"
+        };
+        String[] titles3 = new String[]{
+                "编号", "姓名", "电话号码", "备注", "创建时间", "cTime", "uTime", "项目(名称)"
+                , "项目(总次数)", "项目(剩余次数)", "项目id", "消费项目", "消费时间", "消费CTime", "消费uTime", "消费备注", "消费Id"
+        };
+
+        HSSFRow row2 = hssfSheet2.createRow(index2);
+        HSSFRow row3 = hssfSheet3.createRow(index3);
+        HSSFCell hssfCell = null;
+        for (int i = 0; i < titles.length; i++) {
+            hssfCell = row.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+        for (int i = 0; i < titles2.length; i++) {
+            hssfCell = row2.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles2[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+        for (int i = 0; i < titles3.length; i++) {
+            hssfCell = row3.createCell(i);//列索引从0开始
+            hssfCell.setCellValue(titles3[i]);//列名1
+            hssfCell.setCellStyle(hssfCellStyle);//列居中显示
+        }
+
+        for (int i = 0; i < userList.size(); i++) {
+            UserLC user2 = userList.get(i);
+            List<ConsumeProjectLC> consumeProjects = user2.consumeProjects;
+            index2++;
+            row2 = hssfSheet2.createRow(index2);
+            row2.createCell(0).setCellValue(user2.newNumber);
+            row2.createCell(1).setCellValue(user2.name);
+            row2.createCell(2).setCellValue(user2.username);
+            row2.createCell(3).setCellValue(user2.remark);
+            row2.createCell(4).setCellValue(user2.date);
+            row2.createCell(5).setCellValue(user2.createdAt);
+            row2.createCell(6).setCellValue(user2.createdAt);
+            row2.createCell(7).setCellValue(user2.objectId);
+            if (consumeProjects.size() == 0) {
+                Log.d("tf_test", user2 + "未有绑定项目");
+                index++;
+                row = userSt.createRow(index);
+                // 第六步，创建单元格，并设置值
+                row.createCell(0).setCellValue(user2.newNumber);
+                row.createCell(1).setCellValue(user2.name);
+                row.createCell(2).setCellValue(user2.username);
+                row.createCell(3).setCellValue(user2.remark);
+                row.createCell(4).setCellValue(user2.date);
+                row.createCell(5).setCellValue(user2.createdAt);
+                row.createCell(6).setCellValue(user2.createdAt);
+                row.createCell(7).setCellValue(user2.objectId);
+                continue;
+            }
+
+
+            for (ConsumeProjectLC consumeProject : consumeProjects) {
+                index++;
+                row = userSt.createRow(index);
+                row.createCell(0).setCellValue(user2.newNumber);
+                row.createCell(1).setCellValue(user2.name);
+                row.createCell(2).setCellValue(user2.username);
+                row.createCell(3).setCellValue(user2.remark);
+                row.createCell(4).setCellValue(user2.date);
+                row.createCell(5).setCellValue(user2.createdAt);
+                row.createCell(6).setCellValue(user2.createdAt);
+                row.createCell(7).setCellValue(user2.objectId);
+                row.createCell(8).setCellValue(consumeProject.getParent().getName());
+                row.createCell(9).setCellValue(consumeProject.getParent().getTotalCount());
+                row.createCell(10).setCellValue(consumeProject.getRemainCount());
+                row.createCell(11).setCellValue(consumeProject.objectId);
+
+                List<ConsumeRecordLC> consumeRecords = consumeProject.consumeRecords;
+                if (consumeRecords.size() > 0) {
+                    for (ConsumeRecordLC consumeRecord : consumeRecords) {
+                        if (consumeRecord == null || consumeRecord.getObjectId() == null) {
+                            Log.d("tf_test", consumeRecord + "有异常");
+                            continue;
+                        }
+                        index3++;
+                        row3 = hssfSheet3.createRow(index3);
+                        row3.createCell(0).setCellValue(user2.newNumber);
+                        row3.createCell(1).setCellValue(user2.name);
+                        row3.createCell(2).setCellValue(user2.username);
+                        row3.createCell(3).setCellValue(user2.remark);
+                        row3.createCell(4).setCellValue(user2.date);
+                        row3.createCell(5).setCellValue(user2.createdAt);
+                        row3.createCell(6).setCellValue(user2.createdAt);
+                        row3.createCell(7).setCellValue(consumeProject.getParent().getName());
+                        row3.createCell(8).setCellValue(consumeProject.getParent().getTotalCount());
+                        row3.createCell(9).setCellValue(consumeProject.getRemainCount());
+                        row3.createCell(10).setCellValue(consumeProject.objectId);
+                        row3.createCell(11).setCellValue(consumeRecord.getName());
+                        row3.createCell(12).setCellValue(consumeRecord.getDate());
+                        row3.createCell(13).setCellValue(consumeRecord.createdAt);
+                        row3.createCell(14).setCellValue(consumeRecord.createdAt);
+                        row3.createCell(15).setCellValue(consumeRecord.getRemark());
+                        row3.createCell(16).setCellValue(consumeRecord.objectId);
                     }
 
                 }

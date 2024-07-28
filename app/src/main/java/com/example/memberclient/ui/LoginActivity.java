@@ -12,13 +12,24 @@ import android.widget.Toast;
 
 import com.example.memberclient.R;
 import com.example.memberclient.application.MyApp;
+import com.example.memberclient.fragment.MineFragment;
+import com.example.memberclient.model.ConsumeProjectLC;
+import com.example.memberclient.model.ConsumeRecordLC;
+import com.example.memberclient.model.ProjectLC;
+import com.example.memberclient.model.SourceLC;
 import com.example.memberclient.model.User;
 import com.example.memberclient.model.User2LC;
+import com.example.memberclient.model.UserLC;
+import com.example.memberclient.utils.CommonUtils;
 import com.example.memberclient.utils.NetUtils;
 import com.example.memberclient.utils.ProgressUtils;
 import com.example.memberclient.utils.SPUtils;
 import com.example.memberclient.utils.ToastUtil;
+import com.example.memberclient.utils.Utils;
 
+
+import java.io.File;
+import java.util.List;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -53,6 +64,62 @@ public class LoginActivity extends BaseActivity {
         cb_use_lc = findViewById(R.id.cb_use_lc);
         findViewById(R.id.btn_login).setOnClickListener(this);
         findViewById(R.id.label_register).setOnClickListener(this);
+        findViewById(R.id.btn_transform).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        MineFragment mineFragment = new MineFragment();
+                        Log.e("tf_test","开始获取数据");
+                        List<UserLC> UserLCs = Utils.getJsonV2("UserLC.json", getSubActivity(), UserLC.class);
+                        Log.e("tf_test","UserLCs="+UserLCs.size());
+                        List<ProjectLC> projectLCS = Utils.getJsonV2("ProjectLC.0.jsonl", getSubActivity(), ProjectLC.class);
+                        Log.e("tf_test","projectLCS="+projectLCS.size());
+                        List<ConsumeProjectLC> cps = Utils.getJsonV2("ConsumeProjectLC.0.jsonl", getSubActivity(), ConsumeProjectLC.class);
+                        Log.e("tf_test","cps="+cps.size());
+                        List<ConsumeRecordLC> crs = Utils.getJsonV2("ConsumeRecordLC.0.jsonl", getSubActivity(), ConsumeRecordLC.class);
+                        Log.e("tf_test","crs="+crs.size());
+                        for (ConsumeProjectLC cp:cps) {
+                            UserLC user = cp.user;
+                            for (UserLC userLC:UserLCs) {
+                                if (user.objectId.equals(userLC.objectId)){
+                                    cp.user=userLC;
+                                }
+                            }
+                        }
+                        for (ConsumeRecordLC consumeRecordLC:crs) {
+                            ConsumeProjectLC from = consumeRecordLC.getFrom();
+                            for (ConsumeProjectLC cp:cps) {
+                                if (from.objectId.equals(cp.objectId)){
+                                    consumeRecordLC.from=cp;
+                                }
+                            }
+                        }
+
+                        SourceLC sourceLC = new SourceLC();
+                        sourceLC.users=UserLCs;
+                        sourceLC.projects=projectLCS;
+                        sourceLC.cps=cps;
+                        sourceLC.crs=crs;
+                        try {
+                            File file = mineFragment.parseSourceV2(getSubActivity(), sourceLC);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mineFragment.shareFile(getSubActivity(), file);
+
+                                }
+                            });
+                        } catch (Exception e) {
+                            Log.e("tf_test","Exception="+Log.getStackTraceString(e));
+                        }
+                    }
+                }).start();
+
+
+            }
+        });
         if (cache != null && !MyApp.USE_LC) {
             mEtLoginName.setText(cache.getUsername());
             mEtLoginPass.setText(cache.getPass());
@@ -75,6 +142,7 @@ public class LoginActivity extends BaseActivity {
 //                MyApp.USE_LC=isChecked;
             }
         });
+
 //        1111111
     }
 

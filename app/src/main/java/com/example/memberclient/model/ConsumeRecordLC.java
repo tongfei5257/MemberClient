@@ -31,7 +31,9 @@ public class ConsumeRecordLC extends LCObject implements Parcelable {
     public String oldCrateTime;
     public String oldUpdateTime;
     public String bmId;
-
+    public String objectId;
+    public String createdAt;
+    public String updatedAt;
     public ConsumeRecordLC() {
     }
 
@@ -78,6 +80,8 @@ public class ConsumeRecordLC extends LCObject implements Parcelable {
         projectLC.oldUpdateTime = lcObject.getString("oldUpdateTime");
         projectLC.count = lcObject.getInt("count");
         projectLC.objectId = lcObject.getObjectId();
+        projectLC.createdAt = lcObject.getCreatedAtString();
+        projectLC.updatedAt = lcObject.getUpdatedAtString();
         return projectLC;
 
     }
