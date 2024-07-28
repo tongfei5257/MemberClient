@@ -64,7 +64,9 @@ public class UserLC extends LCObject implements Parcelable {
         date = in.readString();
         oldId = in.readString();
         bmId = in.readString();
-        setObjectId(in.readString());
+        String objectId = in.readString();
+        setObjectId(objectId);
+        this.objectId=objectId;
     }
 
     public static final Creator<UserLC> CREATOR = new Creator<UserLC>() {
@@ -284,6 +286,7 @@ public class UserLC extends LCObject implements Parcelable {
         projectLC.objectId = lcObject.getObjectId();
         projectLC.createdAt = lcObject.getCreatedAtString();
         projectLC.updatedAt = lcObject.getUpdatedAtString();
+        projectLC.setObjectId(lcObject.getObjectId());
         return projectLC;
     }
     public List<ConsumeProjectLC> consumeProjects = new ArrayList<>();

@@ -56,6 +56,7 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
         oldCrateTime = in.readString();
         bmId = in.readString();
         objectId = in.readString();
+        setObjectId(objectId);
     }
 
     public static final Creator<ConsumeProjectLC> CREATOR = new Creator<ConsumeProjectLC>() {
@@ -204,6 +205,7 @@ public class ConsumeProjectLC extends LCObject implements Parcelable {
         projectLC.date = lcObject.getString("date");
         projectLC.oldCrateTime = lcObject.getString("oldCrateTime");
         projectLC.objectId = lcObject.getObjectId();
+        projectLC.setObjectId(lcObject.getObjectId());
         if (TextUtils.isEmpty(projectLC.oldCrateTime)) {
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             Date createdAt = lcObject.getCreatedAt();
